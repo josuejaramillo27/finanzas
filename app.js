@@ -29,6 +29,7 @@ onSnapshot(qMovimientos, (querySnapshot) => {
         if (data.tipo === 'ingreso') ingresos += data.monto;
         if (data.tipo === 'gasto') gastos += data.monto;
         if (data.tipo === 'intocable') intocable += data.monto;
+      if (data.tipo === 'retiro-boveda') intocable -= data.monto;
     });
 
     actualizarDashboard(ingresos, gastos, intocable);
