@@ -1,1 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Finanzas PWA</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>📊 Mi Control Financiero</h1>
+    </header>
 
+    <main>
+        <section class="card" id="dashboard">
+            <h2>💰 Balance General</h2>
+            <h3 id="saldo-total">S/ 0.00</h3>
+            
+            <hr>
+            
+            <h2>🔒 Dinero Intocable (Bóveda)</h2>
+            <p>Fondo de inversión o terceros: <strong id="saldo-intocable">S/ 0.00</strong></p>
+            
+            <hr>
+
+            <h2>⚖️ Tu Presupuesto (Regla 50/30/20)</h2>
+            <ul class="regla-lista">
+                <li><strong>50% Necesidades:</strong> S/ <span id="pres-50">0.00</span></li>
+                <li><strong>30% Deseos:</strong> S/ <span id="pres-30">0.00</span></li>
+                <li><strong>20% Ahorro:</strong> S/ <span id="pres-20">0.00</span></li>
+            </ul>
+        </section>
+
+        <section class="card" id="nuevo-movimiento">
+            <h2>📝 Registrar Movimiento</h2>
+            <form id="form-movimiento">
+                <select id="tipo-movimiento" required>
+                    <option value="ingreso">🟢 Ingreso</option>
+                    <option value="gasto">🔴 Gasto</option>
+                    <option value="intocable">🔒 Dinero Intocable</option>
+                </select>
+                
+                <input type="number" id="monto" placeholder="Monto en S/" step="0.01" required>
+                
+                <select id="banco" required>
+                    <option value="">Selecciona el Banco...</option>
+                    <option value="bcp">BCP</option>
+                    <option value="interbank">Interbank</option>
+                    <option value="efectivo">Efectivo</option>
+                </select>
+                
+                <select id="categoria" required>
+                    <option value="">Categoría...</option>
+                    <option value="comida">🍽️ Alimentación</option>
+                    <option value="transporte">🚌 Transporte</option>
+                    <option value="hogar">🏠 Hogar</option>
+                    <option value="diversion">🎉 Diversión</option>
+                </select>
+
+                <button type="submit">Guardar Movimiento</button>
+            </form>
+        </section>
+
+        <section class="card" id="gastos-fijos">
+            <h2>📅 Gastos Fijos Pendientes</h2>
+            <ul id="lista-fijos">
+                <li>💡 Luz (Día 15) - S/ 100.00 <button class="btn-pagar">✅ Pagar</button></li>
+            </ul>
+        </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
