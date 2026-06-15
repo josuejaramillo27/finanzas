@@ -134,3 +134,49 @@ function dibujarGrafico(ingresos, gastos) {
         options: { responsive: true, plugins: { legend: { display: false } } }
     });
 }
+
+// ==========================================
+// LÓGICA DEL BOTÓN "DESCARGAR APP" (PWA)
+// ==========================================
+let eventoInstalacion;
+const btnInstalar = document.getElementById('btn-instalar');
+
+// 1. Verificar si la app ya está instalada al cargar la página
+if (window.matchMedia('(display-mode: standalone)').matches) {
+    // Si ya está como app en el celular, el botón nunca aparece
+    btnInstalar.style.display = 'none';
+}
+
+// 2. Capturar el evento de instalación que envía Android/Chrome
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevenimos que Android muestre su propio aviso feo
+    e.preventDefault();
+    // Guardamos el evento para activarlo con nuestro botón
+    eventoInstalacion = e;
+    // Mostramos nuestro botón elegante
+    btnInstalar.style.display = 'flex';
+});
+
+// 3. Qué pasa al tocar nuestro botón
+btnInstalar.addEventListener('click', async () => {
+    if (!eventoInstalacion) return;
+    
+    // Desplegamos la ventana nativa de instalación de Android
+    eventoInstalacion.prompt();
+    
+    // Esperamos a ver si el usuario aceptó o canceló
+    const { outcome } = await eventoInstalacion.userChoice;
+    if (outcome === 'accepted') {
+        console.log('App instalada con éxito');
+        // Ocultamos el botón inmediatamente
+        btnInstalar.style.display = 'none';
+    }
+    
+    // Limpiamos la variable
+    eventoInstalacion = null;
+});
+
+// 4. Asegurarnos de borrar el botón si la instalación se completó
+window.addEventListener('appinstalled', () => {
+    btnInstalar.style.display = 'none';
+});
