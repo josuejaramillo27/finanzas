@@ -1,6 +1,6 @@
-// Importar funciones de Firebase (Versión Modular)
+// Importar funciones de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // TODO: PEGA AQUÍ TU firebaseConfig REAL
 const firebaseConfig = {
@@ -12,16 +12,14 @@ const firebaseConfig = {
   appId: "1:888544036329:web:d69d5b3409c876f3b8f778"
 };
 
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Variables globales para el gráfico
 let graficoFinanzas;
 
-// Escuchar los datos en tiempo real
-const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
-onSnapshot(q, (querySnapshot) => {
+// 1. Escuchar MOVIMIENTOS GENERALES
+const qMovimientos = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
+onSnapshot(qMovimientos, (querySnapshot) => {
     let ingresos = 0;
     let gastos = 0;
     let intocable = 0;
@@ -36,15 +34,77 @@ onSnapshot(q, (querySnapshot) => {
     actualizarDashboard(ingresos, gastos, intocable);
 });
 
-// Función para calcular 50/30/20 y actualizar textos
+// 2. Escuchar GASTOS FIJOS
+const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
+onSnapshot(qFijos, (querySnapshot) => {
+    const listaFijos = document.getElementById('lista-fijos');
+    listaFijos.innerHTML = ''; // Limpiar lista
+
+    querySnapshot.forEach((documento) => {
+        const data = documento.data();
+        listaFijos.innerHTML += `
+            <li>
+                <div class="info-fijo">
+                    <strong>${data.nombre}</strong>
+                    <span>Día ${data.dia} | S/ ${data.monto.toFixed(2)}</span>
+                </div>
+                <button class="btn-pildora btn-rojo btn-eliminar" onclick="eliminarFijo('${documento.id}')">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </li>
+        `;
+    });
+});
+
+// Función para eliminar gasto fijo (Hecha global para el botón HTML)
+window.eliminarFijo = async function(id) {
+    if(confirm("¿Seguro que quieres eliminar este gasto fijo?")) {
+        await deleteDoc(doc(db, "gastos_fijos", id));
+    }
+};
+
+// Guardar Movimiento General
+document.getElementById('form-movimiento').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const tipo = document.getElementById('tipo-movimiento').value;
+    const monto = parseFloat(document.getElementById('monto').value);
+    const banco = document.getElementById('banco').value;
+    const categoria = document.getElementById('categoria').value;
+
+    try {
+        await addDoc(collection(db, "movimientos"), {
+            tipo, monto, banco, categoria, fecha: new Date()
+        });
+        document.getElementById('form-movimiento').reset();
+    } catch (error) {
+        console.error("Error: ", error);
+    }
+});
+
+// Guardar Nuevo Gasto Fijo
+document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-fijo').value;
+    const monto = parseFloat(document.getElementById('monto-fijo').value);
+    const dia = parseInt(document.getElementById('dia-fijo').value);
+
+    try {
+        await addDoc(collection(db, "gastos_fijos"), {
+            nombre, monto, dia
+        });
+        document.getElementById('form-gasto-fijo').reset();
+    } catch (error) {
+        console.error("Error al guardar gasto fijo: ", error);
+    }
+});
+
+// Matemáticas del Dashboard
 function actualizarDashboard(ingresos, gastos, intocable) {
     const saldoDisponible = ingresos - gastos;
 
-    // Actualizar HTML
     document.getElementById('saldo-total').innerText = `S/ ${saldoDisponible.toFixed(2)}`;
     document.getElementById('saldo-intocable').innerText = `S/ ${intocable.toFixed(2)}`;
 
-    // Matemáticas de la Regla 50/30/20
     const nec50 = saldoDisponible > 0 ? saldoDisponible * 0.50 : 0;
     const des30 = saldoDisponible > 0 ? saldoDisponible * 0.30 : 0;
     const aho20 = saldoDisponible > 0 ? saldoDisponible * 0.20 : 0;
@@ -56,14 +116,10 @@ function actualizarDashboard(ingresos, gastos, intocable) {
     dibujarGrafico(ingresos, gastos);
 }
 
-// Función para dibujar el gráfico con Chart.js
+// Gráfico
 function dibujarGrafico(ingresos, gastos) {
     const ctx = document.getElementById('miGrafico').getContext('2d');
-    
-    // Si ya existe un gráfico, lo destruimos para actualizarlo
-    if (graficoFinanzas) {
-        graficoFinanzas.destroy();
-    }
+    if (graficoFinanzas) graficoFinanzas.destroy();
 
     graficoFinanzas = new Chart(ctx, {
         type: 'doughnut',
@@ -71,41 +127,10 @@ function dibujarGrafico(ingresos, gastos) {
             labels: ['Ingresos', 'Gastos'],
             datasets: [{
                 data: [ingresos, gastos],
-                backgroundColor: ['#27ae60', '#e74c3c'],
+                backgroundColor: ['#29c87c', '#ff3b4a'],
                 borderWidth: 0
             }]
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                }
-            }
-        }
+        options: { responsive: true, plugins: { legend: { display: false } } }
     });
 }
-
-// Lógica para guardar un nuevo movimiento en Firebase
-document.getElementById('form-movimiento').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const tipo = document.getElementById('tipo-movimiento').value;
-    const monto = parseFloat(document.getElementById('monto').value);
-    const banco = document.getElementById('banco').value;
-    const categoria = document.getElementById('categoria').value;
-
-    try {
-        await addDoc(collection(db, "movimientos"), {
-            tipo: tipo,
-            monto: monto,
-            banco: banco,
-            categoria: categoria,
-            fecha: new Date()
-        });
-        document.getElementById('form-movimiento').reset();
-    } catch (error) {
-        console.error("Error al guardar: ", error);
-        alert('Hubo un error al guardar tu dinero.');
-    }
-});
