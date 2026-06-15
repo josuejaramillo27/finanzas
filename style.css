@@ -5,12 +5,15 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Fondo animado estilo "Nado de Ballena" (Oscuro y fluido) */
+html {
+    scroll-behavior: smooth; /* Hace que al tocar los botones baje de forma fluida */
+}
+
 body {
     background: linear-gradient(-45deg, #15151e, #1c1c28, #0a1128, #12121c);
     background-size: 400% 400%;
     animation: nadoBallena 18s ease-in-out infinite;
-    color: #f5f5f7; /* Texto claro estilo Apple */
+    color: #f5f5f7;
     padding-bottom: 50px;
 }
 
@@ -26,19 +29,12 @@ header {
     margin-bottom: 10px;
 }
 
-header h1 {
-    font-size: 1.8rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
 main {
     max-width: 600px;
     margin: 0 auto;
     padding: 0 15px;
 }
 
-/* Efecto Mac Glassmorphism (Cristal oscuro) */
 .mac-glass {
     background: rgba(44, 44, 46, 0.6);
     backdrop-filter: blur(12px);
@@ -46,18 +42,29 @@ main {
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 18px;
     padding: 25px;
-    margin-bottom: 25px;
+    margin-bottom: 30px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 h2 {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     margin-bottom: 20px;
-    font-weight: 500;
-    color: #ffffff;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+/* Colores para los títulos de cada sección */
+.color-teal { color: #29c87c; }
+.color-morado { color: #c048db; }
+.color-amarillo { color: #ffb800; }
+.color-rojo { color: #ff3b4a; }
+
+.monto-destacado {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
 }
 
 hr {
@@ -66,47 +73,43 @@ hr {
     margin: 20px 0;
 }
 
-/* Botones estilo píldora basados en tu imagen */
 .botones-menu {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-bottom: 25px;
-    flex-wrap: wrap;
-    justify-content: center;
+    margin-bottom: 30px;
 }
 
 .btn-pildora {
-    padding: 12px 20px;
-    border-radius: 30px; /* Forma de píldora */
+    padding: 12px 15px;
+    border-radius: 30px;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     cursor: pointer;
     border: none;
     transition: transform 0.2s ease;
-    justify-content: center;
+    text-decoration: none; /* Para que los enlaces no tengan línea abajo */
 }
 
 .btn-pildora:hover {
     transform: translateY(-2px);
 }
 
-/* Colores extraídos de tu imagen */
 .btn-rojo { background-color: #ff3b4a; color: white; }
-.btn-amarillo { background-color: #ffb800; color: white; width: 100%; margin-top: 10px; }
-.btn-morado { background: linear-gradient(135deg, #c048db, #f94185); color: white; flex-grow: 1; }
-.btn-teal { background: linear-gradient(135deg, #0088ff, #29c87c); color: white; flex-grow: 1; }
+.btn-amarillo { background-color: #ffb800; color: #1a1a1a; } /* Letra oscura para contraste */
+.btn-morado { background: linear-gradient(135deg, #c048db, #f94185); color: white; }
+.btn-teal { background: linear-gradient(135deg, #0088ff, #29c87c); color: white; }
 
-.btn-pagar {
-    padding: 8px 15px;
-    font-size: 0.85rem;
-    float: right;
-    margin-top: -5px;
+/* Botón pequeño para eliminar gastos fijos */
+.btn-eliminar {
+    padding: 6px 12px;
+    font-size: 0.8rem;
 }
 
-/* Inputs oscuros estilo Mac */
 input, select {
     width: 100%;
     padding: 14px;
@@ -117,7 +120,6 @@ input, select {
     border-radius: 12px;
     font-size: 1rem;
     outline: none;
-    transition: border 0.3s;
 }
 
 input:focus, select:focus {
@@ -129,11 +131,7 @@ select option {
     color: white;
 }
 
-/* Listas y detalles */
-.regla-lista {
-    list-style: none;
-}
-
+.regla-lista { list-style: none; }
 .regla-lista li {
     margin-bottom: 12px;
     font-size: 1.1rem;
@@ -152,16 +150,22 @@ select option {
 .dot-30 { background-color: #ffb800; }
 .dot-20 { background-color: #29c87c; }
 
-#lista-fijos {
-    list-style: none;
-}
-
+#lista-fijos { list-style: none; }
 #lista-fijos li {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
     padding: 15px;
     border-radius: 12px;
     margin-bottom: 10px;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.info-fijo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
 .canvas-container {
