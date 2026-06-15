@@ -14,14 +14,22 @@
     </header>
 
     <main>
-        <div class="botones-menu">
-            <div class="btn-pildora btn-morado"><i class="fa-solid fa-trophy"></i> Mi Resumen</div>
-            <div class="btn-pildora btn-teal"><i class="fa-solid fa-store"></i> Bóveda</div>
-        </div>
+        <nav class="botones-menu">
+            <a href="#seccion-boveda" class="btn-pildora btn-teal"><i class="fa-solid fa-lock"></i> Bóveda</a>
+            <a href="#seccion-balance" class="btn-pildora btn-morado"><i class="fa-solid fa-scale-balanced"></i> Balance</a>
+            <a href="#seccion-registro" class="btn-pildora btn-amarillo"><i class="fa-solid fa-pen-to-square"></i> Registro</a>
+            <a href="#seccion-fijos" class="btn-pildora btn-rojo"><i class="fa-regular fa-calendar-check"></i> Fijos</a>
+        </nav>
 
-        <section class="card mac-glass" id="dashboard">
-            <h2><i class="fa-solid fa-chart-pie"></i> Balance General</h2>
-            <h3 id="saldo-total">S/ 0.00</h3>
+        <section class="card mac-glass" id="seccion-boveda">
+            <h2 class="color-teal"><i class="fa-solid fa-vault"></i> Bóveda (Intocable)</h2>
+            <p>Dinero de inversión o terceros:</p>
+            <h3 id="saldo-intocable" class="monto-destacado">S/ 0.00</h3>
+        </section>
+
+        <section class="card mac-glass" id="seccion-balance">
+            <h2 class="color-morado"><i class="fa-solid fa-chart-pie"></i> Balance General</h2>
+            <h3 id="saldo-total" class="monto-destacado">S/ 0.00</h3>
             
             <div class="canvas-container">
                 <canvas id="miGrafico" width="100" height="100"></canvas>
@@ -29,12 +37,7 @@
             
             <hr>
             
-            <h2><i class="fa-solid fa-lock"></i> Dinero Intocable (Bóveda)</h2>
-            <p>Fondo de inversión o terceros: <strong id="saldo-intocable">S/ 0.00</strong></p>
-            
-            <hr>
-
-            <h2><i class="fa-solid fa-scale-balanced"></i> Presupuesto (50/30/20)</h2>
+            <h2 class="color-morado"><i class="fa-solid fa-bullseye"></i> Presupuesto (50/30/20)</h2>
             <ul class="regla-lista">
                 <li><span class="dot dot-50"></span> <strong>50% Necesidades:</strong> S/ <span id="pres-50">0.00</span></li>
                 <li><span class="dot dot-30"></span> <strong>30% Deseos:</strong> S/ <span id="pres-30">0.00</span></li>
@@ -42,13 +45,13 @@
             </ul>
         </section>
 
-        <section class="card mac-glass" id="nuevo-movimiento">
-            <h2><i class="fa-solid fa-pen-to-square"></i> Registrar Movimiento</h2>
+        <section class="card mac-glass" id="seccion-registro">
+            <h2 class="color-amarillo"><i class="fa-solid fa-money-bill-transfer"></i> Registrar Movimiento</h2>
             <form id="form-movimiento">
                 <select id="tipo-movimiento" required>
                     <option value="ingreso">Ingreso</option>
                     <option value="gasto">Gasto</option>
-                    <option value="intocable">Dinero Intocable</option>
+                    <option value="intocable">Añadir a Bóveda</option>
                 </select>
                 
                 <input type="number" id="monto" placeholder="Monto en S/" step="0.01" required>
@@ -66,17 +69,27 @@
                     <option value="transporte">Transporte</option>
                     <option value="hogar">Hogar</option>
                     <option value="diversion">Diversión</option>
+                    <option value="boveda">Bóveda / Inversión</option>
                 </select>
 
-                <button type="submit" class="btn-pildora btn-amarillo"><i class="fa-solid fa-bell"></i> Guardar Movimiento</button>
+                <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%;"><i class="fa-solid fa-check"></i> Guardar</button>
             </form>
         </section>
 
-        <section class="card mac-glass" id="gastos-fijos">
-            <h2><i class="fa-regular fa-calendar-check"></i> Gastos Fijos Pendientes</h2>
+        <section class="card mac-glass" id="seccion-fijos">
+            <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Mis Gastos Fijos</h2>
+            
+            <form id="form-gasto-fijo" style="margin-bottom: 20px;">
+                <input type="text" id="nombre-fijo" placeholder="Ej. Internet, Alquiler" required>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="monto-fijo" placeholder="S/ Monto" step="0.01" required>
+                    <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
+                </div>
+                <button type="submit" class="btn-pildora btn-rojo" style="width: 100%;"><i class="fa-solid fa-plus"></i> Agregar Gasto Fijo</button>
+            </form>
+
             <ul id="lista-fijos">
-                <li><i class="fa-solid fa-bolt"></i> Luz (Día 15) - S/ 100.00 <button class="btn-pildora btn-rojo btn-pagar"><i class="fa-solid fa-box"></i> Pagar</button></li>
-            </ul>
+                </ul>
         </section>
     </main>
 
