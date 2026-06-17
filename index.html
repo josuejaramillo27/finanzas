@@ -3,110 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Finanzas</title>
+    <title>Mis Finanzas | Meta 1000</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#15151e">
-    <link rel="apple-touch-icon" href="icono.png">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <header>
-        <h1><i class="fa-solid fa-wallet"></i> Control Financiero</h1>
-        <button id="btn-instalar" class="btn-pildora btn-teal" style="display: none; margin: 15px auto 0; width: fit-content;">
-            <i class="fa-solid fa-download"></i> Descargar App
-        </button>
+        <h1><i class="fa-solid fa-rocket"></i> Finanzas Meta S/ 1000</h1>
     </header>
 
     <main>
-        <nav class="botones-menu">
-            <a href="#seccion-boveda" class="btn-pildora btn-teal"><i class="fa-solid fa-lock"></i> Bóveda</a>
-            <a href="#seccion-balance" class="btn-pildora btn-morado"><i class="fa-solid fa-scale-balanced"></i> Balance</a>
-            <a href="#seccion-registro" class="btn-pildora btn-amarillo"><i class="fa-solid fa-pen-to-square"></i> Registro</a>
-            <a href="#seccion-fijos" class="btn-pildora btn-rojo"><i class="fa-regular fa-calendar-check"></i> Fijos</a>
-        </nav>
-
-        <section class="card mac-glass" id="seccion-boveda">
-            <h2 class="color-teal"><i class="fa-solid fa-vault"></i> Bóveda (Intocable)</h2>
-            <p>Dinero de inversión o terceros:</p>
-            <h3 id="saldo-intocable" class="monto-destacado">S/ 0.00</h3>
-        </section>
-
         <section class="card mac-glass" id="seccion-balance">
-            <h2 class="color-morado"><i class="fa-solid fa-chart-pie"></i> Balance General</h2>
-            <h3 id="saldo-total" class="monto-destacado">S/ 0.00</h3>
+            <h2 class="color-morado"><i class="fa-solid fa-trophy"></i> Tu Meta Mensual: S/ 1000</h2>
+            <p>Ganancia Neta del Mes (Ingresos - Gastos):</p>
+            <h3 id="ganancia-mensual" class="monto-destacado" style="color: #29c87c;">S/ 0.00</h3>
             
-            <div class="canvas-container">
-                <canvas id="miGrafico" width="100" height="100"></canvas>
+            <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 15px; width: 100%; margin-top: 10px; overflow: hidden;">
+                <div id="barra-meta" style="background: linear-gradient(135deg, #29c87c, #0088ff); height: 100%; width: 0%; transition: width 0.5s;"></div>
+            </div>
+
+            <hr>
+            
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                <div><strong>Ingresos:</strong> <br>S/ <span id="mes-ingresos">0.00</span></div>
+                <div><strong>Gastos:</strong> <br>S/ <span id="mes-gastos">0.00</span></div>
+                <div><strong>Inversión:</strong> <br>S/ <span id="mes-inversiones">0.00</span></div>
             </div>
             
             <hr>
-            
-            <h2 class="color-morado"><i class="fa-solid fa-bullseye"></i> Presupuesto (50/30/20)</h2>
-            <ul class="regla-lista">
-                <li><span class="dot dot-50"></span> <strong>50% Necesidades:</strong> S/ <span id="pres-50"> 0.00</span></li>
-                <li><span class="dot dot-30"></span> <strong>30% Deseos:</strong> S/ <span id="pres-30"> 0.00</span></li>
-                <li><span class="dot dot-20"></span> <strong>20% Ahorro:</strong> S/ <span id="pres-20"> 0.00</span></li>
-            </ul>
+            <h2 class="color-teal"><i class="fa-solid fa-building-columns"></i> Cierre de Banco</h2>
+            <p>¿Con cuánto acabas el día en tu cuenta hoy?</p>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <input type="number" id="saldo-real" placeholder="S/ Total en cuenta" step="0.01">
+                <button id="btn-actualizar-saldo" class="btn-pildora btn-teal">Guardar</button>
+            </div>
+            <p style="font-size: 0.8rem; margin-top: 5px;">Último saldo registrado: <strong id="mostrar-saldo-real">S/ 0.00</strong></p>
         </section>
 
         <section class="card mac-glass" id="seccion-registro">
-            <h2 class="color-amarillo"><i class="fa-solid fa-money-bill-transfer"></i> Registrar Movimiento</h2>
+            <h2 class="color-amarillo"><i class="fa-solid fa-pen-nib"></i> Registro Libre</h2>
             <form id="form-movimiento">
                 <select id="tipo-movimiento" required>
-                    <option value="ingreso">Ingreso</option>
-                    <option value="gasto">Gasto</option>
-                    <option value="intocable">Añadir a Bóveda</option>
-                    <option value="retiro-boveda">Retirar de Bóveda</option>
+                    <option value="ingreso">🟢 Ingresó dinero</option>
+                    <option value="gasto">🔴 Gasté en algo</option>
+                    <option value="inversion">🚀 Inversión</option>
                 </select>
                 
                 <input type="number" id="monto" placeholder="Monto en S/" step="0.01" required>
                 
-                <select id="banco" required>
-                    <option value="">Selecciona el Banco...</option>
-                    <option value="bcp">BCP</option>
-                    <option value="bbva">BBVA</option>
-                    <option value="lemon">Lemon</option>
-                    <option value="efectivo">Efectivo</option>
-                </select>
-                
-                <select id="categoria" required>
-                    <option value="">Categoría...</option>
-                    <option value="comida">Alimentación</option>
-                    <option value="transporte">Transporte</option>
-                    <option value="hogar">Hogar</option>
-                    <option value="diversion">Diversión</option>
-                    <option value="boveda">Bóveda / Inversión</option>
-                </select>
+                <input type="text" id="descripcion" placeholder="¿Qué fue? (Ej. jabones, afiliación...)" required>
 
-                <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%;"><i class="fa-solid fa-check"></i> Guardar</button>
+                <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%;"><i class="fa-solid fa-check"></i> Registrar</button>
             </form>
         </section>
 
+        <section class="card mac-glass" id="seccion-historial">
+            <h2 class="color-morado"><i class="fa-solid fa-clock-rotate-left"></i> Historial del Mes</h2>
+            <ul id="lista-historial" style="list-style: none; padding: 0;">
+                </ul>
+        </section>
+
         <section class="card mac-glass" id="seccion-fijos">
-            <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Mis Gastos Fijos</h2>
-            
+            <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Gastos Fijos (Internet, etc.)</h2>
             <form id="form-gasto-fijo" style="margin-bottom: 20px;">
-                <input type="text" id="nombre-fijo" placeholder="Ej. Internet, Alquiler" required>
+                <input type="text" id="nombre-fijo" placeholder="Ej. Internet, Cuidado Personal" required>
                 <div style="display: flex; gap: 10px;">
                     <input type="number" id="monto-fijo" placeholder="S/ Monto" step="0.01" required>
-                    <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
+                    <input type="number" id="dia-fijo" placeholder="Día del mes (1-31)" min="1" max="31" required>
                 </div>
-                <button type="submit" class="btn-pildora btn-rojo" style="width: 100%;"><i class="fa-solid fa-plus"></i> Agregar Gasto Fijo</button>
+                <button type="submit" class="btn-pildora btn-rojo" style="width: 100%;"><i class="fa-solid fa-plus"></i> Agregar Fijo</button>
             </form>
-
-            <ul id="lista-fijos">
-                </ul>
+            <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
         </section>
     </main>
 
     <script type="module" src="app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('App lista para instalarse'));
-        }
-    </script>
 </body>
 </html>
