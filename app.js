@@ -14,6 +14,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Establecer la fecha de hoy por defecto en el formulario
+const campoFecha = document.getElementById('fecha-movimiento');
+campoFecha.valueAsDate = new Date();
+
 // 1. ESCUCHAR MOVIMIENTOS Y CALCULAR META MENSUAL
 const qMovimientos = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
 onSnapshot(qMovimientos, (querySnapshot) => {
@@ -75,18 +79,30 @@ window.eliminarMovimiento = async function(id) {
     }
 };
 
-// 2. GUARDAR MOVIMIENTO NUEVO (Con descripción libre)
+// 2. GUARDAR MOVIMIENTO NUEVO (Con descripción libre y fecha seleccionable)
 document.getElementById('form-movimiento').addEventListener('submit', async (e) => {
     e.preventDefault();
     const tipo = document.getElementById('tipo-movimiento').value;
     const monto = parseFloat(document.getElementById('monto').value);
-    const descripcion = document.getElementById('descripcion').value; // Ahora es texto libre
+    const descripcion = document.getElementById('descripcion').value; 
+    
+    // NUEVO: Capturamos la fecha que elegiste y corregimos la zona horaria
+    const fechaElegida = document.getElementById('fecha-movimiento').value;
+    // Agregamos 'T12:00:00' para evitar que por zonas horarias se guarde como el día anterior
+    const fechaGuardar = new Date(fechaElegida + 'T12:00:00');
 
     try {
         await addDoc(collection(db, "movimientos"), {
-            tipo, monto, descripcion, fecha: new Date()
+            tipo, 
+            monto, 
+            descripcion, 
+            fecha: fechaGuardar // Se guarda con la fecha que elegiste
         });
+        
+        // Reseteamos el formulario y volvemos a poner la fecha de hoy
         document.getElementById('form-movimiento').reset();
+        document.getElementById('fecha-movimiento').valueAsDate = new Date();
+        
     } catch (error) {
         console.error("Error: ", error);
     }
