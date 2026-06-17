@@ -83,6 +83,9 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     saldoEsperadoGlobal = saldoTotalHistorico;
     document.getElementById('saldo-esperado').innerText = `S/ ${saldoEsperadoGlobal.toFixed(2)}`;
 
+  // NUEVA LÍNEA: Mostrar el saldo gigante en la parte superior
+    document.getElementById('saldo-actual-top').innerText = `S/ ${saldoEsperadoGlobal.toFixed(2)}`;
+
     // Actualizar Panel de Meta del Mes Actual
     const gananciaNetaActual = ingresosMesActual - gastosMesActual;
     document.getElementById('ganancia-mensual').innerText = `S/ ${gananciaNetaActual.toFixed(2)}`;
