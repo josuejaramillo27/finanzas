@@ -23,38 +23,30 @@
             <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 15px; width: 100%; margin-top: 10px; overflow: hidden;">
                 <div id="barra-meta" style="background: linear-gradient(135deg, #29c87c, #0088ff); height: 100%; width: 0%; transition: width 0.5s;"></div>
             </div>
-
-            <hr>
-            
-            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
-                <div><strong>Ingresos:</strong> <br>S/ <span id="mes-ingresos">0.00</span></div>
-                <div><strong>Gastos:</strong> <br>S/ <span id="mes-gastos">0.00</span></div>
-                <div><strong>Inversión:</strong> <br>S/ <span id="mes-inversiones">0.00</span></div>
-            </div>
             
             <hr>
+            
             <h2 class="color-teal"><i class="fa-solid fa-building-columns"></i> Cierre de Banco</h2>
             <p>¿Con cuánto acabas el día en tu cuenta hoy?</p>
             <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <input type="number" id="saldo-real" placeholder="S/ Total en cuenta" step="0.01">
-                <button id="btn-actualizar-saldo" class="btn-pildora btn-teal">Guardar</button>
+                <input type="number" id="saldo-real" placeholder="S/ Total real" step="0.01">
+                <button id="btn-actualizar-saldo" class="btn-pildora btn-teal">Ajustar</button>
             </div>
-            <p style="font-size: 0.8rem; margin-top: 5px;">Último saldo registrado: <strong id="mostrar-saldo-real">S/ 0.00</strong></p>
+            <p style="font-size: 0.8rem; margin-top: 5px; color: #aaa;">Saldo calculado por la app: <strong id="saldo-esperado">S/ 0.00</strong></p>
         </section>
 
         <section class="card mac-glass" id="seccion-registro">
-            <h2 class="color-amarillo"><i class="fa-solid fa-pen-nib"></i> Registro Libre</h2>
+            <h2 class="color-amarillo"><i class="fa-solid fa-pen-nib"></i> Registrar Movimiento</h2>
+            <p style="font-size: 0.8rem; margin-bottom: 15px;">Solo anota lo pesado o ingresos. Los gastos pequeños se ajustan solos.</p>
             <form id="form-movimiento">
                 <select id="tipo-movimiento" required>
                     <option value="ingreso">🟢 Ingresó dinero</option>
-                    <option value="gasto">🔴 Gasté en algo</option>
+                    <option value="gasto">🔴 Gasté (Pesado)</option>
                     <option value="inversion">🚀 Inversión</option>
                 </select>
                 
                 <input type="number" id="monto" placeholder="Monto en S/" step="0.01" required>
-                
-                <input type="text" id="descripcion" placeholder="¿Qué fue? (Ej. jabones, afiliación...)" required>
-
+                <input type="text" id="descripcion" placeholder="¿Qué fue? (Ej. Champú, Sueldo...)" required>
                 <input type="date" id="fecha-movimiento" required>
 
                 <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%;"><i class="fa-solid fa-check"></i> Registrar</button>
@@ -62,25 +54,18 @@
         </section>
 
         <section class="card mac-glass" id="seccion-historial">
-            <h2 class="color-morado"><i class="fa-solid fa-clock-rotate-left"></i> Historial del Mes</h2>
+            <h2 class="color-morado"><i class="fa-solid fa-clock-rotate-left"></i> Detalle de este mes</h2>
             <ul id="lista-historial" style="list-style: none; padding: 0;">
                 </ul>
         </section>
 
-        <section class="card mac-glass" id="seccion-fijos">
-            <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Gastos Fijos (Internet, etc.)</h2>
-            <form id="form-gasto-fijo" style="margin-bottom: 20px;">
-                <input type="text" id="nombre-fijo" placeholder="Ej. Internet, Cuidado Personal" required>
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" id="monto-fijo" placeholder="S/ Monto" step="0.01" required>
-                    <input type="number" id="dia-fijo" placeholder="Día del mes (1-31)" min="1" max="31" required>
-                </div>
-                <button type="submit" class="btn-pildora btn-rojo" style="width: 100%;"><i class="fa-solid fa-plus"></i> Agregar Fijo</button>
-            </form>
-            <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
+        <section class="card mac-glass" id="seccion-meses">
+            <h2 class="color-teal"><i class="fa-solid fa-calendar-check"></i> Resumen por Meses</h2>
+            <ul id="lista-meses" style="list-style: none; padding: 0;">
+                </ul>
         </section>
-    </main>
 
+    </main>
     <script type="module" src="app.js"></script>
 </body>
 </html>
