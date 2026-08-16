@@ -10,8 +10,11 @@
     <meta name="theme-color" content="#15151e">
 </head>
 <body>
-    <header>
+    <header style="display: flex; flex-direction: column; align-items: center;">
         <h1><i class="fa-solid fa-wallet"></i> Finanzas Simples</h1>
+        <div style="background: rgba(255, 184, 0, 0.2); border: 1px solid #ffb800; color: #ffb800; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-top: 10px; display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fa-solid fa-fire"></i> Racha: <span id="racha-dias">0</span> días en verde
+        </div>
     </header>
 
     <main>
@@ -22,7 +25,7 @@
             <div style="background: rgba(41, 200, 124, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(41, 200, 124, 0.3); margin-bottom: 15px;">
                 <p style="font-size: 0.85rem; color: #29c87c; margin-bottom: 5px;"><i class="fa-solid fa-unlock-keyhole"></i> Dinero Libre para Gastar Hoy</p>
                 <h3 id="dinero-libre" style="font-size: 1.8rem; color: #29c87c;">S/ 0.00</h3>
-                <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px;">(Descontando solo los gastos fijos que faltan pagar este mes)</p>
+                <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px;">(Descontando solo los fijos que faltan pagar este mes)</p>
             </div>
 
             <hr>
@@ -46,17 +49,38 @@
         </section>
 
         <section class="card mac-glass" id="seccion-fijos">
-            <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Mis Gastos Fijos</h2>
-            <p style="font-size: 0.8rem; margin-bottom: 15px;">Agrega aquí lo que pagas obligatoriamente cada mes.</p>
+            <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Mis Gastos Fijos y Cuotas</h2>
+            <p style="font-size: 0.8rem; margin-bottom: 15px;">Agrega aquí lo que pagas obligatoriamente cada mes o tus pagos a plazos.</p>
             <form id="form-gasto-fijo" style="margin-bottom: 20px;">
-                <input type="text" id="nombre-fijo" placeholder="Ej. Internet, Alquiler" required>
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" id="monto-fijo" placeholder="S/ Monto" step="0.01" required>
-                    <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
+                <input type="text" id="nombre-fijo" placeholder="Ej. Internet, Tarjeta Cuñada" required>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="number" id="monto-fijo" placeholder="S/ Monto x Mes" step="0.01" required style="margin-bottom: 0;">
+                    <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required style="margin-bottom: 0;">
                 </div>
-                <button type="submit" class="btn-pildora btn-rojo" style="width: 100%;"><i class="fa-solid fa-plus"></i> Guardar Fijo</button>
+                <div style="display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                    <label for="cuotas-fijo" style="font-size: 0.85rem; color: #aaa; width: 60%;">¿Es en cuotas?</label>
+                    <input type="number" id="cuotas-fijo" placeholder="N° Cuotas (0 = Fijo siempre)" min="0" value="0" style="margin-bottom: 0;">
+                </div>
+                <button type="submit" class="btn-pildora btn-rojo" style="width: 100%; margin-top: 15px;"><i class="fa-solid fa-plus"></i> Guardar Gasto Fijo</button>
             </form>
             <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
+        </section>
+
+        <section class="card mac-glass" id="seccion-prestamos">
+            <h2 class="color-teal"><i class="fa-solid fa-handshake-angle"></i> Préstamos (Amigos/Familia)</h2>
+            <p style="font-size: 0.8rem; margin-bottom: 15px;">Anota el dinero que prestaste o te prestaron.</p>
+            <form id="form-prestamo" style="margin-bottom: 20px;">
+                <input type="text" id="nombre-prestamo" placeholder="¿Quién? (Ej. Mi amigo)" required>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="monto-prestamo" placeholder="S/ Monto" step="0.01" required style="margin-bottom: 0;">
+                    <select id="tipo-prestamo" required style="margin-bottom: 0;">
+                        <option value="me_deben">Me deben</option>
+                        <option value="debo">Yo debo</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-pildora btn-teal" style="width: 100%; margin-top: 15px;"><i class="fa-solid fa-plus"></i> Guardar Préstamo</button>
+            </form>
+            <ul id="lista-prestamos" style="list-style: none; padding: 0;"></ul>
         </section>
 
         <section class="card mac-glass" id="seccion-registro">
@@ -85,7 +109,7 @@
         <section class="card mac-glass" id="seccion-meses">
             <h2 class="color-teal"><i class="fa-solid fa-clock-rotate-left"></i> Historial por Meses</h2>
             <ul id="lista-meses" style="list-style: none; padding: 0;">
-                </ul>
+            </ul>
         </section>
 
     </main>
