@@ -17,13 +17,17 @@ const db = getFirestore(app);
 // Variables Globales
 let saldoEsperadoGlobal = 0;
 let totalFijosGlobal = 0;
+let fijosPendientesGlobal = 0; // NUEVO: Suma de los gastos fijos que aún no vencen
 let ingresosMesActualGlobal = 0;
 const mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-// 1. ESCUCHAR GASTOS FIJOS Y MOSTRAR FECHAS
+// 1. ESCUCHAR GASTOS FIJOS Y CALCULAR PENDIENTES
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
+    let sumaPendientes = 0;
+    const diaActual = new Date().getDate(); // Obtiene el día de hoy (1-31)
+    
     const listaFijos = document.getElementById('lista-fijos');
     listaFijos.innerHTML = '';
     
@@ -31,13 +35,21 @@ onSnapshot(qFijos, (querySnapshot) => {
         const data = documento.data();
         sumaFijos += data.monto;
         
-        // Formatear la fecha de registro si existe
+        // NUEVA LÓGICA: Evaluar si el gasto ya pasó o falta pagar
+        let estadoGasto = '';
+        if (data.dia >= diaActual) {
+            sumaPendientes += data.monto; // Aún falta pagar este mes, lo restamos del dinero libre
+            estadoGasto = '<span style="color: #ffb800; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
+        } else {
+            estadoGasto = '<span style="color: #29c87c; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
+        }
+        
         let fechaRegistroTexto = data.fechaRegistro ? data.fechaRegistro.toDate().toLocaleDateString() : 'Sin fecha antigua';
         
         listaFijos.innerHTML += `
             <li style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05);">
                 <div>
-                    <strong>${data.nombre}</strong> <br>
+                    <strong>${data.nombre}</strong> ${estadoGasto} <br>
                     <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia} | Registrado: ${fechaRegistroTexto}</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
@@ -49,8 +61,11 @@ onSnapshot(qFijos, (querySnapshot) => {
     });
     
     totalFijosGlobal = sumaFijos;
+    fijosPendientesGlobal = sumaPendientes; // Guardamos lo que falta pagar
+    
     document.getElementById('total-fijos-texto').innerText = `S/ ${sumaFijos.toFixed(2)}`;
     actualizarBarraMeta();
+    actualizarDineroLibre(); // Actualizamos el panel verde
 });
 
 // Guardar Gasto Fijo con Fecha
@@ -61,10 +76,7 @@ document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) 
     const dia = parseInt(document.getElementById('dia-fijo').value);
     try {
         await addDoc(collection(db, "gastos_fijos"), { 
-            nombre, 
-            monto, 
-            dia, 
-            fechaRegistro: new Date() // Guardamos la fecha del momento en que se crea
+            nombre, monto, dia, fechaRegistro: new Date()
         });
         document.getElementById('form-gasto-fijo').reset();
     } catch (error) { console.error(error); }
@@ -100,7 +112,6 @@ onSnapshot(qMovimientos, (querySnapshot) => {
 
         if(!resumenMensual[llaveMes]) resumenMensual[llaveMes] = { ingresos: 0, gastos: 0 };
 
-        // Cálculos generales (Saldo Esperado)
         if (data.tipo === 'ingreso') {
             saldoTotalHistorico += data.monto;
             resumenMensual[llaveMes].ingresos += data.monto;
@@ -109,7 +120,6 @@ onSnapshot(qMovimientos, (querySnapshot) => {
             resumenMensual[llaveMes].gastos += data.monto;
         }
 
-        // Si es del mes actual, sumamos para la meta y lo ponemos en el historial
         if(mesDoc === mesActual && anioDoc === anioActual) {
             if (data.tipo === 'ingreso') ingresosMesActual += data.monto;
             
@@ -131,16 +141,14 @@ onSnapshot(qMovimientos, (querySnapshot) => {
         }
     });
 
-    // Actualizar Saldo Gigante
     saldoEsperadoGlobal = saldoTotalHistorico;
     const saldoTop = document.getElementById('saldo-actual-top');
     if(saldoTop) saldoTop.innerText = `S/ ${saldoEsperadoGlobal.toFixed(2)}`;
 
-    // Actualizar Barra de Meta
     ingresosMesActualGlobal = ingresosMesActual;
     actualizarBarraMeta();
+    actualizarDineroLibre(); // Actualizamos el panel verde
 
-    // Dibujar Resumen Histórico por Meses
     for (const [mes, datos] of Object.entries(resumenMensual)) {
         let neta = datos.ingresos - datos.gastos;
         let colorNeta = neta > 0 ? '#29c87c' : '#ff3b4a';
@@ -161,7 +169,7 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     }
 });
 
-// Función para actualizar la barra dinámica
+// Función para actualizar la barra de meta
 function actualizarBarraMeta() {
     const estadoMeta = document.getElementById('estado-meta');
     const barraFijos = document.getElementById('barra-meta-fijos');
@@ -174,11 +182,9 @@ function actualizarBarraMeta() {
         return;
     }
     
-    // CAMBIO AQUÍ: Ahora usamos tu 'saldoEsperadoGlobal' (Saldo en cuenta)
     let faltan = totalFijosGlobal - saldoEsperadoGlobal;
     let porcentaje = (saldoEsperadoGlobal / totalFijosGlobal) * 100;
     
-    // Evitamos que la barra se salga de los bordes
     if(porcentaje > 100) porcentaje = 100;
     if(porcentaje < 0) porcentaje = 0;
 
@@ -192,7 +198,24 @@ function actualizarBarraMeta() {
         estadoMeta.style.color = "#ffb800";
     }
 }
-// Eliminar movimiento
+
+// NUEVA FUNCIÓN: Calcular Dinero Libre
+function actualizarDineroLibre() {
+    const elementoLibre = document.getElementById('dinero-libre');
+    if (!elementoLibre) return;
+
+    // Solo restamos de tu saldo los fijos que todavía no vencen este mes
+    let dineroLibre = saldoEsperadoGlobal - fijosPendientesGlobal;
+
+    if (dineroLibre > 0) {
+        elementoLibre.innerText = `S/ ${dineroLibre.toFixed(2)}`;
+        elementoLibre.style.color = "#29c87c"; // Verde brillante (Puedes gastar)
+    } else {
+        elementoLibre.innerText = `S/ 0.00`;
+        elementoLibre.style.color = "#ff3b4a"; // Rojo (¡No gastes nada extra!)
+    }
+}
+
 window.eliminarMovimiento = async function(id) {
     if(confirm("¿Borrar este registro? Esto recalculará tus saldos.")) {
         await deleteDoc(doc(db, "movimientos", id));
