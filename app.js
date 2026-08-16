@@ -20,7 +20,7 @@ let totalFijosGlobal = 0;
 let ingresosMesActualGlobal = 0;
 const mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-// 1. ESCUCHAR GASTOS FIJOS Y CALCULAR META
+// 1. ESCUCHAR GASTOS FIJOS Y MOSTRAR FECHAS
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
@@ -31,9 +31,15 @@ onSnapshot(qFijos, (querySnapshot) => {
         const data = documento.data();
         sumaFijos += data.monto;
         
+        // Formatear la fecha de registro si existe
+        let fechaRegistroTexto = data.fechaRegistro ? data.fechaRegistro.toDate().toLocaleDateString() : 'Sin fecha antigua';
+        
         listaFijos.innerHTML += `
             <li style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05);">
-                <div><strong>${data.nombre}</strong> <br><span style="font-size: 0.8rem;">Día ${data.dia}</span></div>
+                <div>
+                    <strong>${data.nombre}</strong> <br>
+                    <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia} | Registrado: ${fechaRegistroTexto}</span>
+                </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <strong>S/ ${data.monto.toFixed(2)}</strong>
                     <button onclick="eliminarFijo('${documento.id}')" style="background: none; border: none; color: #ff3b4a; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
@@ -47,22 +53,28 @@ onSnapshot(qFijos, (querySnapshot) => {
     actualizarBarraMeta();
 });
 
-// Guardar y Eliminar Gastos Fijos
+// Guardar Gasto Fijo con Fecha
 document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('nombre-fijo').value;
     const monto = parseFloat(document.getElementById('monto-fijo').value);
     const dia = parseInt(document.getElementById('dia-fijo').value);
     try {
-        await addDoc(collection(db, "gastos_fijos"), { nombre, monto, dia });
+        await addDoc(collection(db, "gastos_fijos"), { 
+            nombre, 
+            monto, 
+            dia, 
+            fechaRegistro: new Date() // Guardamos la fecha del momento en que se crea
+        });
         document.getElementById('form-gasto-fijo').reset();
     } catch (error) { console.error(error); }
 });
+
 window.eliminarFijo = async function(id) {
     if(confirm("¿Eliminar este gasto fijo?")) await deleteDoc(doc(db, "gastos_fijos", id));
 };
 
-// 2. ESCUCHAR MOVIMIENTOS Y CALCULAR TODO (Mes a Mes)
+// 2. ESCUCHAR MOVIMIENTOS Y DIBUJAR HISTORIAL CON FECHAS
 const qMovimientos = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
 onSnapshot(qMovimientos, (querySnapshot) => {
     let ingresosMesActual = 0;
@@ -72,7 +84,11 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     const anioActual = new Date().getFullYear();
     
     const listaMeses = document.getElementById('lista-meses');
-    listaMeses.innerHTML = '';
+    const listaHistorial = document.getElementById('lista-historial');
+    
+    if(listaMeses) listaMeses.innerHTML = '';
+    if(listaHistorial) listaHistorial.innerHTML = '';
+    
     let resumenMensual = {};
 
     querySnapshot.forEach((documento) => {
@@ -93,44 +109,68 @@ onSnapshot(qMovimientos, (querySnapshot) => {
             resumenMensual[llaveMes].gastos += data.monto;
         }
 
-        // Si es del mes actual, sumamos para la barra de progreso
+        // Si es del mes actual, sumamos para la meta y lo ponemos en el historial
         if(mesDoc === mesActual && anioDoc === anioActual) {
             if (data.tipo === 'ingreso') ingresosMesActual += data.monto;
+            
+            if(listaHistorial) {
+                let icono = data.tipo === 'ingreso' ? '🟢' : '🔴';
+                listaHistorial.innerHTML += `
+                    <li style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; flex-direction: column;">
+                            <strong style="font-size: 1rem;">${icono} ${data.descripcion}</strong>
+                            <span style="font-size: 0.8rem; color: #aaa;">Fecha: ${fechaDoc.toLocaleDateString()}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <strong style="font-size: 1.1rem;">S/ ${data.monto.toFixed(2)}</strong>
+                            <button onclick="eliminarMovimiento('${documento.id}')" style="background: none; border: none; color: #ff3b4a; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </li>
+                `;
+            }
         }
     });
 
     // Actualizar Saldo Gigante
     saldoEsperadoGlobal = saldoTotalHistorico;
-    document.getElementById('saldo-actual-top').innerText = `S/ ${saldoEsperadoGlobal.toFixed(2)}`;
+    const saldoTop = document.getElementById('saldo-actual-top');
+    if(saldoTop) saldoTop.innerText = `S/ ${saldoEsperadoGlobal.toFixed(2)}`;
 
     // Actualizar Barra de Meta
     ingresosMesActualGlobal = ingresosMesActual;
     actualizarBarraMeta();
 
-    // Dibujar Resumen Histórico
+    // Dibujar Resumen Histórico por Meses
     for (const [mes, datos] of Object.entries(resumenMensual)) {
         let neta = datos.ingresos - datos.gastos;
         let colorNeta = neta > 0 ? '#29c87c' : '#ff3b4a';
         
-        listaMeses.innerHTML += `
-            <li style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <strong>${mes}</strong>
-                    <strong style="color: ${colorNeta};">Neta: S/ ${neta.toFixed(2)}</strong>
-                </div>
-                <div style="font-size: 0.85rem; color: #aaa;">
-                    Ingresos: S/ ${datos.ingresos.toFixed(2)} | Gastos: S/ ${datos.gastos.toFixed(2)}
-                </div>
-            </li>
-        `;
+        if(listaMeses) {
+            listaMeses.innerHTML += `
+                <li style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <strong>${mes}</strong>
+                        <strong style="color: ${colorNeta};">Neta: S/ ${neta.toFixed(2)}</strong>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #aaa;">
+                        Ingresos: S/ ${datos.ingresos.toFixed(2)} | Gastos: S/ ${datos.gastos.toFixed(2)}
+                    </div>
+                </li>
+            `;
+        }
     }
 });
 
 // Función para actualizar la barra dinámica
 function actualizarBarraMeta() {
+    const estadoMeta = document.getElementById('estado-meta');
+    const barraFijos = document.getElementById('barra-meta-fijos');
+    
+    if(!estadoMeta || !barraFijos) return;
+
     if(totalFijosGlobal === 0) {
-        document.getElementById('estado-meta').innerText = "Agrega gastos fijos primero";
-        document.getElementById('barra-meta-fijos').style.width = '0%';
+        estadoMeta.innerText = "Agrega gastos fijos primero";
+        barraFijos.style.width = '0%';
         return;
     }
     
@@ -138,62 +178,75 @@ function actualizarBarraMeta() {
     let porcentaje = (ingresosMesActualGlobal / totalFijosGlobal) * 100;
     if(porcentaje > 100) porcentaje = 100;
 
-    document.getElementById('barra-meta-fijos').style.width = `${porcentaje}%`;
+    barraFijos.style.width = `${porcentaje}%`;
 
     if(faltan <= 0) {
-        document.getElementById('estado-meta').innerText = "¡Meta lograda! Fijos cubiertos 🎉";
-        document.getElementById('estado-meta').style.color = "#29c87c";
+        estadoMeta.innerText = "¡Meta lograda! Fijos cubiertos 🎉";
+        estadoMeta.style.color = "#29c87c";
     } else {
-        document.getElementById('estado-meta').innerText = `Faltan S/ ${faltan.toFixed(2)}`;
-        document.getElementById('estado-meta').style.color = "#ffb800";
+        estadoMeta.innerText = `Faltan S/ ${faltan.toFixed(2)}`;
+        estadoMeta.style.color = "#ffb800";
     }
 }
 
+// Eliminar movimiento
+window.eliminarMovimiento = async function(id) {
+    if(confirm("¿Borrar este registro? Esto recalculará tus saldos.")) {
+        await deleteDoc(doc(db, "movimientos", id));
+    }
+};
+
 // 3. REGISTRAR GASTOS VARIABLES E INGRESOS
 const campoFecha = document.getElementById('fecha-movimiento');
-campoFecha.valueAsDate = new Date();
+if(campoFecha) campoFecha.valueAsDate = new Date();
 
-document.getElementById('form-movimiento').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const tipo = document.getElementById('tipo-movimiento').value;
-    const monto = parseFloat(document.getElementById('monto').value);
-    const descripcion = document.getElementById('descripcion').value; 
-    
-    const fechaElegida = document.getElementById('fecha-movimiento').value;
-    const fechaGuardar = new Date(fechaElegida + 'T12:00:00');
+const formMovimiento = document.getElementById('form-movimiento');
+if(formMovimiento) {
+    formMovimiento.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tipo = document.getElementById('tipo-movimiento').value;
+        const monto = parseFloat(document.getElementById('monto').value);
+        const descripcion = document.getElementById('descripcion').value; 
+        
+        const fechaElegida = document.getElementById('fecha-movimiento').value;
+        const fechaGuardar = new Date(fechaElegida + 'T12:00:00');
 
-    try {
-        await addDoc(collection(db, "movimientos"), {
-            tipo, monto, descripcion, fecha: fechaGuardar
-        });
-        document.getElementById('form-movimiento').reset();
-        document.getElementById('fecha-movimiento').valueAsDate = new Date();
-    } catch (error) { console.error("Error: ", error); }
-});
+        try {
+            await addDoc(collection(db, "movimientos"), {
+                tipo, monto, descripcion, fecha: fechaGuardar
+            });
+            formMovimiento.reset();
+            document.getElementById('fecha-movimiento').valueAsDate = new Date();
+        } catch (error) { console.error("Error: ", error); }
+    });
+}
 
 // 4. CIERRE DE BANCO: AJUSTE AUTOMÁTICO
-document.getElementById('btn-actualizar-saldo').addEventListener('click', async () => {
-    const saldoRealInput = document.getElementById('saldo-real').value;
-    if(saldoRealInput === '') return alert("Ingresa tu saldo real.");
-    
-    const saldoReal = parseFloat(saldoRealInput);
-    const diferencia = saldoReal - saldoEsperadoGlobal;
+const btnActualizarSaldo = document.getElementById('btn-actualizar-saldo');
+if(btnActualizarSaldo) {
+    btnActualizarSaldo.addEventListener('click', async () => {
+        const saldoRealInput = document.getElementById('saldo-real').value;
+        if(saldoRealInput === '') return alert("Ingresa tu saldo real.");
+        
+        const saldoReal = parseFloat(saldoRealInput);
+        const diferencia = saldoReal - saldoEsperadoGlobal;
 
-    if(Math.abs(diferencia) < 0.05) {
-        alert("¡Todo cuadra!");
-        document.getElementById('saldo-real').value = '';
-        return;
-    }
+        if(Math.abs(diferencia) < 0.05) {
+            alert("¡Todo cuadra!");
+            document.getElementById('saldo-real').value = '';
+            return;
+        }
 
-    let tipoAjuste = diferencia < 0 ? 'gasto' : 'ingreso';
-    let descripcionAjuste = diferencia < 0 ? '☕ Gastos diarios menores (Auto)' : '✨ Ingreso no identificado (Auto)';
-    let montoAjuste = Math.abs(diferencia);
+        let tipoAjuste = diferencia < 0 ? 'gasto' : 'ingreso';
+        let descripcionAjuste = diferencia < 0 ? '☕ Gastos diarios menores (Auto)' : '✨ Ingreso no identificado (Auto)';
+        let montoAjuste = Math.abs(diferencia);
 
-    try {
-        await addDoc(collection(db, "movimientos"), {
-            tipo: tipoAjuste, monto: montoAjuste, descripcion: descripcionAjuste, fecha: new Date()
-        });
-        document.getElementById('saldo-real').value = '';
-        alert(`Ajuste creado: ${tipoAjuste} por S/ ${montoAjuste.toFixed(2)} para cuadrar.`);
-    } catch (error) { console.error(error); }
-});
+        try {
+            await addDoc(collection(db, "movimientos"), {
+                tipo: tipoAjuste, monto: montoAjuste, descripcion: descripcionAjuste, fecha: new Date()
+            });
+            document.getElementById('saldo-real').value = '';
+            alert(`Ajuste creado: ${tipoAjuste} por S/ ${montoAjuste.toFixed(2)} para cuadrar.`);
+        } catch (error) { console.error(error); }
+    });
+}
