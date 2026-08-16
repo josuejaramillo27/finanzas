@@ -21,25 +21,43 @@ let fijosPendientesGlobal = 0;
 let ingresosMesActualGlobal = 0;
 const mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-// --- NUEVA LÓGICA: GAMIFICACIÓN DE RACHA ---
+// --- NUEVA LÓGICA: GAMIFICACIÓN DE RACHA CORREGIDA ---
 function calcularRacha(diasNetos) {
     let racha = 0;
+    const rachaEl = document.getElementById('racha-dias');
+
+    // Si tu app es nueva y aún no hay registros, la racha empieza en 0
+    if (diasNetos.size === 0) {
+        if(rachaEl) rachaEl.innerText = 0;
+        return;
+    }
+
+    // Averiguamos cuál fue el primer día que registraste un movimiento en la app
+    let tiempos = Array.from(diasNetos.keys());
+    let tiempoMasAntiguo = Math.min(...tiempos);
+
     let fechaCheck = new Date();
     fechaCheck.setHours(0,0,0,0);
     
-    // Comprueba día por día hacia atrás (hasta 1 año)
+    // Comprueba día por día hacia atrás
     for(let i=0; i<365; i++) {
         let tiempo = fechaCheck.getTime();
-        // Si no registró nada manual, o si sus ingresos superaron sus gastos manuales = Día Verde
+        
+        // ¡LA MAGIA! Si el buscador viaja más atrás del día en que instalaste la app, se detiene
+        if (tiempo < tiempoMasAntiguo) {
+            break;
+        }
+
+        // Si hoy no registraste nada, o si tus ingresos superaron tus gastos = Día Verde 🔥
         if (!diasNetos.has(tiempo) || diasNetos.get(tiempo) >= 0) {
             racha++;
             fechaCheck.setDate(fechaCheck.getDate() - 1);
         } else {
-            // El neto es negativo (gastó más de lo que ingresó manualmente), se rompe la racha
+            // Si el neto es negativo (gastaste más de lo que ganaste hoy), se rompe la racha
             break;
         }
     }
-    const rachaEl = document.getElementById('racha-dias');
+    
     if(rachaEl) rachaEl.innerText = racha;
 }
 
