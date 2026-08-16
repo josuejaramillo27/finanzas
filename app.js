@@ -61,7 +61,7 @@ function calcularRacha(diasNetos) {
     if(rachaEl) rachaEl.innerText = racha;
 }
 
-// 1. ESCUCHAR GASTOS FIJOS Y CUOTAS
+// 1. ESCUCHAR GASTOS FIJOS Y CUOTAS INTELIGENTES
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
@@ -71,29 +71,39 @@ onSnapshot(qFijos, (querySnapshot) => {
     const anioActual = new Date().getFullYear();
     
     const listaFijos = document.getElementById('lista-fijos');
-    listaFijos.innerHTML = '';
+    if(listaFijos) listaFijos.innerHTML = '';
     
     querySnapshot.forEach((documento) => {
         const data = documento.data();
-        let esActivo = true;
+        let esVigenteEsteMes = true;
+        let esCompletado = false;
         let cuotasTexto = '';
 
-        // Lógica de CUOTAS (La app detecta si ya pasó el tiempo)
-        if (data.cuotas && data.cuotas > 0 && data.fechaRegistro) {
-            let fechaReg = data.fechaRegistro.toDate();
-            // Diferencia en meses desde que se registró
-            let mesesPasados = (anioActual - fechaReg.getFullYear()) * 12 + (mesActual - fechaReg.getMonth());
-            let cuotaActual = mesesPasados + 1;
-            
-            if (cuotaActual > data.cuotas) {
-                esActivo = false; // El tiempo se acabó, ya no se cobra
+        // Tomamos la fecha de inicio del pago (o fecha de registro si no tiene)
+        let fechaStart = data.fechaInicio ? data.fechaInicio.toDate() : (data.fechaRegistro ? data.fechaRegistro.toDate() : new Date());
+
+        // Calculamos la diferencia de meses exacta entre la 1ª cuota y el mes actual
+        let mesesPasados = (anioActual - fechaStart.getFullYear()) * 12 + (mesActual - fechaStart.getMonth());
+        let cuotaActual = mesesPasados + 1;
+
+        if (data.cuotas && data.cuotas > 0) {
+            if (cuotaActual < 1) {
+                // CASO 1: La cuota empieza en el futuro (ej. el próximo mes)
+                esVigenteEsteMes = false;
+                let mesNombreFuturo = mesesNombres[fechaStart.getMonth()];
+                cuotasTexto = `<span style="color: #0088ff; font-size: 0.75rem; margin-left: 5px;">(Inicia en ${mesNombreFuturo})</span>`;
+            } else if (cuotaActual > data.cuotas) {
+                // CASO 2: Ya se pagaron todas las cuotas
+                esCompletado = true;
+                esVigenteEsteMes = false;
             } else {
+                // CASO 3: Cuota activa este mes
                 cuotasTexto = `<span style="color: #c048db; font-size: 0.75rem; margin-left: 5px;">(Cuota ${cuotaActual}/${data.cuotas})</span>`;
             }
         }
 
-        // Si la cuota ya terminó, la mostramos tachada y NO sumamos
-        if (!esActivo) {
+        // Si ya se completaron todas las cuotas del préstamo
+        if (esCompletado) {
             listaFijos.innerHTML += `
                 <li style="background: rgba(0,0,0,0.1); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05); opacity: 0.5;">
                     <div>
@@ -101,30 +111,30 @@ onSnapshot(qFijos, (querySnapshot) => {
                         <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia}</span>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="eliminarFijo('${documento.id}')" style="background: none; border: none; color: #ff3b4a; cursor: pointer;" title="Eliminar del historial"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="eliminarFijo('${documento.id}')" style="background: none; border: none; color: #ff3b4a; cursor: pointer;" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </li>
             `;
-            return; // Saltamos para no sumarlo a los gastos de este mes
+            return;
         }
 
-        // Si es activo (fijo de siempre o cuota vigente)
-        sumaFijos += data.monto;
+        // Determinar si falta pagar o ya pasó dentro de este mes
         let estadoGasto = '';
-        if (data.dia >= diaActual) {
-            sumaPendientes += data.monto; 
-            estadoGasto = '<span style="color: #ffb800; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
-        } else {
-            estadoGasto = '<span style="color: #29c87c; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
+        if (esVigenteEsteMes) {
+            sumaFijos += data.monto;
+            if (data.dia >= diaActual) {
+                sumaPendientes += data.monto; 
+                estadoGasto = '<span style="color: #ffb800; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
+            } else {
+                estadoGasto = '<span style="color: #29c87c; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
+            }
         }
-        
-        let fechaRegistroTexto = data.fechaRegistro ? data.fechaRegistro.toDate().toLocaleDateString() : 'Sin fecha antigua';
-        
+
         listaFijos.innerHTML += `
             <li style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05);">
                 <div>
                     <strong>${data.nombre}</strong> ${cuotasTexto} ${estadoGasto} <br>
-                    <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia} | Registrado: ${fechaRegistroTexto}</span>
+                    <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia} | 1ª Cuota: ${fechaStart.toLocaleDateString()}</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <strong>S/ ${data.monto.toFixed(2)}</strong>
@@ -137,25 +147,40 @@ onSnapshot(qFijos, (querySnapshot) => {
     totalFijosGlobal = sumaFijos;
     fijosPendientesGlobal = sumaPendientes;
     
-    document.getElementById('total-fijos-texto').innerText = `S/ ${sumaFijos.toFixed(2)}`;
+    const txtTotalFijos = document.getElementById('total-fijos-texto');
+    if(txtTotalFijos) txtTotalFijos.innerText = `S/ ${sumaFijos.toFixed(2)}`;
+    
     actualizarBarraMeta();
     actualizarDineroLibre(); 
 });
 
-// Guardar Gasto Fijo o Cuota
+// Poner por defecto la fecha de hoy en el selector de inicio de gasto fijo
+const campoFechaInicioFijo = document.getElementById('fecha-inicio-fijo');
+if(campoFechaInicioFijo) campoFechaInicioFijo.valueAsDate = new Date();
+
+// Guardar Gasto Fijo o Cuota con Fecha de Inicio
 document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('nombre-fijo').value;
     const monto = parseFloat(document.getElementById('monto-fijo').value);
     const dia = parseInt(document.getElementById('dia-fijo').value);
-    const cuotas = parseInt(document.getElementById('cuotas-fijo').value) || 0; // NUEVO
+    const cuotas = parseInt(document.getElementById('cuotas-fijo').value) || 0;
+    
+    const fechaInicioVal = document.getElementById('fecha-inicio-fijo').value;
+    const fechaInicio = new Date(fechaInicioVal + 'T12:00:00');
     
     try {
         await addDoc(collection(db, "gastos_fijos"), { 
-            nombre, monto, dia, cuotas, fechaRegistro: new Date()
+            nombre, 
+            monto, 
+            dia, 
+            cuotas, 
+            fechaInicio: fechaInicio,
+            fechaRegistro: new Date()
         });
         document.getElementById('form-gasto-fijo').reset();
-    } catch (error) { console.error(error); }
+        document.getElementById('fecha-inicio-fijo').valueAsDate = new Date();
+    } catch (error) { console.error("Error al guardar gasto fijo: ", error); }
 });
 
 window.eliminarFijo = async function(id) {
