@@ -53,14 +53,22 @@
             <p style="font-size: 0.8rem; margin-bottom: 15px;">Agrega aquí lo que pagas obligatoriamente cada mes o tus pagos a plazos.</p>
             <form id="form-gasto-fijo" style="margin-bottom: 20px;">
                 <input type="text" id="nombre-fijo" placeholder="Ej. Internet, Tarjeta Cuñada" required>
+                
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <input type="number" id="monto-fijo" placeholder="S/ Monto x Mes" step="0.01" required style="margin-bottom: 0;">
-                    <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required style="margin-bottom: 0;">
+                    <input type="number" id="dia-fijo" placeholder="Día de pago (1-31)" min="1" max="31" required style="margin-bottom: 0;">
                 </div>
+
+                <div style="display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+                    <label for="cuotas-fijo" style="font-size: 0.85rem; color: #aaa; width: 60%;">¿N° de Cuotas?</label>
+                    <input type="number" id="cuotas-fijo" placeholder="0 = Fijo mensual" min="0" value="0" style="margin-bottom: 0;">
+                </div>
+
                 <div style="display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                    <label for="cuotas-fijo" style="font-size: 0.85rem; color: #aaa; width: 60%;">¿Es en cuotas?</label>
-                    <input type="number" id="cuotas-fijo" placeholder="N° Cuotas (0 = Fijo siempre)" min="0" value="0" style="margin-bottom: 0;">
+                    <label for="fecha-inicio-fijo" style="font-size: 0.85rem; color: #aaa; width: 60%;">¿Cuándo se paga la 1ª cuota?</label>
+                    <input type="date" id="fecha-inicio-fijo" required style="margin-bottom: 0;">
                 </div>
+
                 <button type="submit" class="btn-pildora btn-rojo" style="width: 100%; margin-top: 15px;"><i class="fa-solid fa-plus"></i> Guardar Gasto Fijo</button>
             </form>
             <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
