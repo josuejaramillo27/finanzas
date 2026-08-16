@@ -17,28 +17,84 @@ const db = getFirestore(app);
 // Variables Globales
 let saldoEsperadoGlobal = 0;
 let totalFijosGlobal = 0;
-let fijosPendientesGlobal = 0; // NUEVO: Suma de los gastos fijos que aún no vencen
+let fijosPendientesGlobal = 0;
 let ingresosMesActualGlobal = 0;
 const mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-// 1. ESCUCHAR GASTOS FIJOS Y CALCULAR PENDIENTES
+// --- NUEVA LÓGICA: GAMIFICACIÓN DE RACHA ---
+function calcularRacha(diasNetos) {
+    let racha = 0;
+    let fechaCheck = new Date();
+    fechaCheck.setHours(0,0,0,0);
+    
+    // Comprueba día por día hacia atrás (hasta 1 año)
+    for(let i=0; i<365; i++) {
+        let tiempo = fechaCheck.getTime();
+        // Si no registró nada manual, o si sus ingresos superaron sus gastos manuales = Día Verde
+        if (!diasNetos.has(tiempo) || diasNetos.get(tiempo) >= 0) {
+            racha++;
+            fechaCheck.setDate(fechaCheck.getDate() - 1);
+        } else {
+            // El neto es negativo (gastó más de lo que ingresó manualmente), se rompe la racha
+            break;
+        }
+    }
+    const rachaEl = document.getElementById('racha-dias');
+    if(rachaEl) rachaEl.innerText = racha;
+}
+
+// 1. ESCUCHAR GASTOS FIJOS Y CUOTAS
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
     let sumaPendientes = 0;
-    const diaActual = new Date().getDate(); // Obtiene el día de hoy (1-31)
+    const diaActual = new Date().getDate(); 
+    const mesActual = new Date().getMonth();
+    const anioActual = new Date().getFullYear();
     
     const listaFijos = document.getElementById('lista-fijos');
     listaFijos.innerHTML = '';
     
     querySnapshot.forEach((documento) => {
         const data = documento.data();
+        let esActivo = true;
+        let cuotasTexto = '';
+
+        // Lógica de CUOTAS (La app detecta si ya pasó el tiempo)
+        if (data.cuotas && data.cuotas > 0 && data.fechaRegistro) {
+            let fechaReg = data.fechaRegistro.toDate();
+            // Diferencia en meses desde que se registró
+            let mesesPasados = (anioActual - fechaReg.getFullYear()) * 12 + (mesActual - fechaReg.getMonth());
+            let cuotaActual = mesesPasados + 1;
+            
+            if (cuotaActual > data.cuotas) {
+                esActivo = false; // El tiempo se acabó, ya no se cobra
+            } else {
+                cuotasTexto = `<span style="color: #c048db; font-size: 0.75rem; margin-left: 5px;">(Cuota ${cuotaActual}/${data.cuotas})</span>`;
+            }
+        }
+
+        // Si la cuota ya terminó, la mostramos tachada y NO sumamos
+        if (!esActivo) {
+            listaFijos.innerHTML += `
+                <li style="background: rgba(0,0,0,0.1); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05); opacity: 0.5;">
+                    <div>
+                        <strong style="text-decoration: line-through;">${data.nombre}</strong> <span style="color: #29c87c; font-size: 0.75rem; margin-left: 5px;">(Completado)</span> <br>
+                        <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia}</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button onclick="eliminarFijo('${documento.id}')" style="background: none; border: none; color: #ff3b4a; cursor: pointer;" title="Eliminar del historial"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </li>
+            `;
+            return; // Saltamos para no sumarlo a los gastos de este mes
+        }
+
+        // Si es activo (fijo de siempre o cuota vigente)
         sumaFijos += data.monto;
-        
-        // NUEVA LÓGICA: Evaluar si el gasto ya pasó o falta pagar
         let estadoGasto = '';
         if (data.dia >= diaActual) {
-            sumaPendientes += data.monto; // Aún falta pagar este mes, lo restamos del dinero libre
+            sumaPendientes += data.monto; 
             estadoGasto = '<span style="color: #ffb800; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
         } else {
             estadoGasto = '<span style="color: #29c87c; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
@@ -49,7 +105,7 @@ onSnapshot(qFijos, (querySnapshot) => {
         listaFijos.innerHTML += `
             <li style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05);">
                 <div>
-                    <strong>${data.nombre}</strong> ${estadoGasto} <br>
+                    <strong>${data.nombre}</strong> ${cuotasTexto} ${estadoGasto} <br>
                     <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia} | Registrado: ${fechaRegistroTexto}</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
@@ -61,22 +117,24 @@ onSnapshot(qFijos, (querySnapshot) => {
     });
     
     totalFijosGlobal = sumaFijos;
-    fijosPendientesGlobal = sumaPendientes; // Guardamos lo que falta pagar
+    fijosPendientesGlobal = sumaPendientes;
     
     document.getElementById('total-fijos-texto').innerText = `S/ ${sumaFijos.toFixed(2)}`;
     actualizarBarraMeta();
-    actualizarDineroLibre(); // Actualizamos el panel verde
+    actualizarDineroLibre(); 
 });
 
-// Guardar Gasto Fijo con Fecha
+// Guardar Gasto Fijo o Cuota
 document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('nombre-fijo').value;
     const monto = parseFloat(document.getElementById('monto-fijo').value);
     const dia = parseInt(document.getElementById('dia-fijo').value);
+    const cuotas = parseInt(document.getElementById('cuotas-fijo').value) || 0; // NUEVO
+    
     try {
         await addDoc(collection(db, "gastos_fijos"), { 
-            nombre, monto, dia, fechaRegistro: new Date()
+            nombre, monto, dia, cuotas, fechaRegistro: new Date()
         });
         document.getElementById('form-gasto-fijo').reset();
     } catch (error) { console.error(error); }
@@ -86,7 +144,53 @@ window.eliminarFijo = async function(id) {
     if(confirm("¿Eliminar este gasto fijo?")) await deleteDoc(doc(db, "gastos_fijos", id));
 };
 
-// 2. ESCUCHAR MOVIMIENTOS Y DIBUJAR HISTORIAL CON FECHAS
+
+// 2. ESCUCHAR PRÉSTAMOS (NUEVA SECCIÓN)
+const qPrestamos = query(collection(db, "prestamos"), orderBy("fecha", "desc"));
+onSnapshot(qPrestamos, (querySnapshot) => {
+    const listaPrestamos = document.getElementById('lista-prestamos');
+    if(!listaPrestamos) return;
+    listaPrestamos.innerHTML = '';
+    
+    querySnapshot.forEach((documento) => {
+        const data = documento.data();
+        let color = data.tipo === 'me_deben' ? '#29c87c' : '#ff3b4a';
+        let textoTipo = data.tipo === 'me_deben' ? 'Me deben a mi' : 'Yo le debo';
+        
+        listaPrestamos.innerHTML += `
+            <li style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05); border-left: 4px solid ${color};">
+                <div>
+                    <strong>${data.nombre}</strong> <br>
+                    <span style="font-size: 0.8rem; color: #aaa;">${textoTipo}</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <strong style="color: ${color};">S/ ${data.monto.toFixed(2)}</strong>
+                    <button onclick="eliminarPrestamo('${documento.id}')" style="background: none; border: none; color: #aaa; cursor: pointer;" title="Marcar como pagado"><i class="fa-solid fa-check-circle"></i></button>
+                </div>
+            </li>
+        `;
+    });
+});
+
+document.getElementById('form-prestamo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-prestamo').value;
+    const monto = parseFloat(document.getElementById('monto-prestamo').value);
+    const tipo = document.getElementById('tipo-prestamo').value;
+    try {
+        await addDoc(collection(db, "prestamos"), { 
+            nombre, monto, tipo, fecha: new Date()
+        });
+        document.getElementById('form-prestamo').reset();
+    } catch (error) { console.error(error); }
+});
+
+window.eliminarPrestamo = async function(id) {
+    if(confirm("¿Seguro que esta deuda ya fue saldada?")) await deleteDoc(doc(db, "prestamos", id));
+};
+
+
+// 3. ESCUCHAR MOVIMIENTOS Y DIBUJAR HISTORIAL
 const qMovimientos = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
 onSnapshot(qMovimientos, (querySnapshot) => {
     let ingresosMesActual = 0;
@@ -102,6 +206,7 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     if(listaHistorial) listaHistorial.innerHTML = '';
     
     let resumenMensual = {};
+    let diasNetos = new Map(); // Para calcular la racha
 
     querySnapshot.forEach((documento) => {
         const data = documento.data();
@@ -118,6 +223,20 @@ onSnapshot(qMovimientos, (querySnapshot) => {
         } else if (data.tipo === 'gasto') {
             saldoTotalHistorico -= data.monto;
             resumenMensual[llaveMes].gastos += data.monto;
+        }
+        
+        // Recopilando datos para Gamificación (Ignorando ajustes automáticos)
+        if (!data.descripcion.includes('(Auto)')) {
+            let fechaSinHora = new Date(fechaDoc);
+            fechaSinHora.setHours(0,0,0,0);
+            let tiempo = fechaSinHora.getTime();
+            
+            let actualNeto = diasNetos.has(tiempo) ? diasNetos.get(tiempo) : 0;
+            if(data.tipo === 'ingreso') {
+                diasNetos.set(tiempo, actualNeto + data.monto);
+            } else if(data.tipo === 'gasto') {
+                diasNetos.set(tiempo, actualNeto - data.monto);
+            }
         }
 
         if(mesDoc === mesActual && anioDoc === anioActual) {
@@ -141,13 +260,16 @@ onSnapshot(qMovimientos, (querySnapshot) => {
         }
     });
 
+    // Calcular y pintar la Racha
+    calcularRacha(diasNetos);
+
     saldoEsperadoGlobal = saldoTotalHistorico;
     const saldoTop = document.getElementById('saldo-actual-top');
     if(saldoTop) saldoTop.innerText = `S/ ${saldoEsperadoGlobal.toFixed(2)}`;
 
     ingresosMesActualGlobal = ingresosMesActual;
     actualizarBarraMeta();
-    actualizarDineroLibre(); // Actualizamos el panel verde
+    actualizarDineroLibre(); 
 
     for (const [mes, datos] of Object.entries(resumenMensual)) {
         let neta = datos.ingresos - datos.gastos;
@@ -169,7 +291,7 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     }
 });
 
-// Función para actualizar la barra de meta
+
 function actualizarBarraMeta() {
     const estadoMeta = document.getElementById('estado-meta');
     const barraFijos = document.getElementById('barra-meta-fijos');
@@ -199,20 +321,19 @@ function actualizarBarraMeta() {
     }
 }
 
-// NUEVA FUNCIÓN: Calcular Dinero Libre
+
 function actualizarDineroLibre() {
     const elementoLibre = document.getElementById('dinero-libre');
     if (!elementoLibre) return;
 
-    // Solo restamos de tu saldo los fijos que todavía no vencen este mes
     let dineroLibre = saldoEsperadoGlobal - fijosPendientesGlobal;
 
     if (dineroLibre > 0) {
         elementoLibre.innerText = `S/ ${dineroLibre.toFixed(2)}`;
-        elementoLibre.style.color = "#29c87c"; // Verde brillante (Puedes gastar)
+        elementoLibre.style.color = "#29c87c"; 
     } else {
         elementoLibre.innerText = `S/ 0.00`;
-        elementoLibre.style.color = "#ff3b4a"; // Rojo (¡No gastes nada extra!)
+        elementoLibre.style.color = "#ff3b4a"; 
     }
 }
 
@@ -222,7 +343,7 @@ window.eliminarMovimiento = async function(id) {
     }
 };
 
-// 3. REGISTRAR GASTOS VARIABLES E INGRESOS
+// 4. REGISTRAR GASTOS VARIABLES E INGRESOS
 const campoFecha = document.getElementById('fecha-movimiento');
 if(campoFecha) campoFecha.valueAsDate = new Date();
 
@@ -247,7 +368,7 @@ if(formMovimiento) {
     });
 }
 
-// 4. CIERRE DE BANCO: AJUSTE AUTOMÁTICO
+// 5. CIERRE DE BANCO: AJUSTE AUTOMÁTICO
 const btnActualizarSaldo = document.getElementById('btn-actualizar-saldo');
 if(btnActualizarSaldo) {
     btnActualizarSaldo.addEventListener('click', async () => {
