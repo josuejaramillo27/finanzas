@@ -174,9 +174,13 @@ function actualizarBarraMeta() {
         return;
     }
     
-    let faltan = totalFijosGlobal - ingresosMesActualGlobal;
-    let porcentaje = (ingresosMesActualGlobal / totalFijosGlobal) * 100;
+    // CAMBIO AQUÍ: Ahora usamos tu 'saldoEsperadoGlobal' (Saldo en cuenta)
+    let faltan = totalFijosGlobal - saldoEsperadoGlobal;
+    let porcentaje = (saldoEsperadoGlobal / totalFijosGlobal) * 100;
+    
+    // Evitamos que la barra se salga de los bordes
     if(porcentaje > 100) porcentaje = 100;
+    if(porcentaje < 0) porcentaje = 0;
 
     barraFijos.style.width = `${porcentaje}%`;
 
@@ -188,7 +192,6 @@ function actualizarBarraMeta() {
         estadoMeta.style.color = "#ffb800";
     }
 }
-
 // Eliminar movimiento
 window.eliminarMovimiento = async function(id) {
     if(confirm("¿Borrar este registro? Esto recalculará tus saldos.")) {
