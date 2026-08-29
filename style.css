@@ -173,3 +173,47 @@ select option {
     max-width: 250px;
     margin: 20px auto;
 }
+
+/* --- ADAPTACIÓN PARA PC Y CELULAR (CSS GRID) --- */
+.dashboard-container {
+    display: grid;
+    grid-template-columns: 1fr; /* 1 columna en celular */
+    gap: 20px;
+    align-items: start;
+}
+
+.resumen-grid {
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+    margin-top: 15px;
+    background: rgba(0,0,0,0.2);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.resumen-item p {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-bottom: 5px;
+}
+
+.resumen-item h3 {
+    font-size: 1.3rem;
+}
+
+/* Pantallas grandes (PC / Tablets) */
+@media (min-width: 768px) {
+    main {
+        max-width: 900px; /* Más ancho para PC */
+    }
+    
+    .dashboard-container {
+        grid-template-columns: 1fr 1fr; /* 2 columnas en PC */
+    }
+    
+    .full-width {
+        grid-column: 1 / -1; /* Ocupa las 2 columnas */
+    }
+}
