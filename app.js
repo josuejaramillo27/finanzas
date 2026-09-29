@@ -20,18 +20,53 @@ const anioActual = new Date().getFullYear();
 
 document.getElementById('mes-actual-nombre').innerText = mesesNombres[mesActual];
 
-// Variables Globales de Cálculo
+// Variables Globales
 let totalFijosGlobal = 0;
-let fijosPendientesGlobal = 0; // Solo los que faltan pagar este mes
+let fijosPendientesGlobal = 0; 
 let ingresosMesGlobal = 0;
 let gastosMesGlobal = 0;
-let saldoEsperadoGlobal = 0;   // Todo el dinero histórico (Ingresos totales - Gastos totales)
+let saldoEsperadoGlobal = 0;   
+let ultimaFechaMovGlobal = null; // Para rastrear el último movimiento
+let desgloseIngresosGlobal = {}; // Para el resumen por clientes
 
-// 1. ESCUCHAR GASTOS FIJOS
+// 1. ESCUCHAR CATEGORÍAS DE CLIENTES
+const qCategorias = query(collection(db, "categorias_ingreso"), orderBy("nombre", "asc"));
+onSnapshot(qCategorias, (querySnapshot) => {
+    const selectCat = document.getElementById('categoria-ingreso');
+    const listaCat = document.getElementById('lista-categorias');
+    
+    if(selectCat) selectCat.innerHTML = '<option value="">Selecciona cliente/categoría...</option>';
+    if(listaCat) listaCat.innerHTML = '';
+    
+    querySnapshot.forEach((documento) => {
+        const data = documento.data();
+        
+        if(selectCat) selectCat.innerHTML += `<option value="${data.nombre}">${data.nombre}</option>`;
+        if(listaCat) listaCat.innerHTML += `
+            <li style="background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem;">
+                <span>${data.nombre}</span>
+                <button onclick="eliminarRegistro('categorias_ingreso', '${documento.id}')" style="background: none; border: none; color: #aaa; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+            </li>
+        `;
+    });
+});
+
+document.getElementById('form-categoria').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-categoria').value;
+    try {
+        await addDoc(collection(db, "categorias_ingreso"), { nombre });
+        document.getElementById('form-categoria').reset();
+    } catch (error) { console.error(error); }
+});
+
+// 2. ESCUCHAR GASTOS FIJOS (CON RADAR DE PRÓXIMO PAGO)
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
     let sumaPendientes = 0;
+    let proximoGasto = null;
+    let minDiasFaltantes = 999;
     const diaActual = new Date().getDate(); 
     
     const listaFijos = document.getElementById('lista-fijos');
@@ -41,11 +76,17 @@ onSnapshot(qFijos, (querySnapshot) => {
         const data = documento.data();
         sumaFijos += data.monto;
         
-        // Evaluar si ya pasó o falta pagar
         let estadoGasto = '';
         if (data.dia >= diaActual) {
             sumaPendientes += data.monto; 
             estadoGasto = '<span style="color: #ffb800; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
+            
+            // Lógica para detectar el más cercano
+            let diasFaltantes = data.dia - diaActual;
+            if (diasFaltantes < minDiasFaltantes) {
+                minDiasFaltantes = diasFaltantes;
+                proximoGasto = data;
+            }
         } else {
             estadoGasto = '<span style="color: #29c87c; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
         }
@@ -66,6 +107,17 @@ onSnapshot(qFijos, (querySnapshot) => {
     
     totalFijosGlobal = sumaFijos;
     fijosPendientesGlobal = sumaPendientes;
+    
+    // Activar el Radar de Próximo Gasto
+    const alertaGasto = document.getElementById('alerta-proximo-gasto');
+    if (proximoGasto) {
+        alertaGasto.style.display = 'block';
+        let textoDias = minDiasFaltantes === 0 ? "Hoy mismo" : (minDiasFaltantes === 1 ? "Mañana" : `en ${minDiasFaltantes} días`);
+        alertaGasto.innerHTML = `<i class="fa-solid fa-bell"></i> Próximo fijo: <strong>${proximoGasto.nombre} (S/ ${proximoGasto.monto})</strong> ${textoDias}. <br>Puedes gastar el Dinero Libre de arriba con seguridad.`;
+    } else {
+        alertaGasto.style.display = 'none';
+    }
+    
     actualizarPanelPrincipal();
 });
 
@@ -75,37 +127,48 @@ document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) 
     const nombre = document.getElementById('nombre-fijo').value;
     const monto = parseFloat(document.getElementById('monto-fijo').value);
     const dia = parseInt(document.getElementById('dia-fijo').value);
-    
     try {
         await addDoc(collection(db, "gastos_fijos"), { nombre, monto, dia });
         document.getElementById('form-gasto-fijo').reset();
-    } catch (error) { console.error("Error: ", error); }
+    } catch (error) { console.error(error); }
 });
 
-// 2. ESCUCHAR MOVIMIENTOS (HISTÓRICO Y MES ACTUAL)
+// 3. ESCUCHAR MOVIMIENTOS
 const qMovimientos = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
 onSnapshot(qMovimientos, (querySnapshot) => {
     let ingresosMes = 0;
     let gastosMes = 0;
     let saldoTotal = 0;
+    desgloseIngresosGlobal = {}; 
     
     const listaHistorial = document.getElementById('lista-historial');
     if(listaHistorial) listaHistorial.innerHTML = '';
     
+    let isFirst = true; // Para capturar la fecha más reciente
+
     querySnapshot.forEach((documento) => {
         const data = documento.data();
         const fechaDoc = data.fecha.toDate();
         const mesDoc = fechaDoc.getMonth();
         const anioDoc = fechaDoc.getFullYear();
 
-        // Calcular Saldo Histórico Global
+        if(isFirst) {
+            ultimaFechaMovGlobal = fechaDoc;
+            isFirst = false;
+        }
+
         if (data.tipo === 'ingreso') saldoTotal += data.monto;
         if (data.tipo === 'gasto') saldoTotal -= data.monto;
 
-        // Calcular y mostrar SOLO el mes actual
         if(mesDoc === mesActual && anioDoc === anioActual) {
-            if (data.tipo === 'ingreso') ingresosMes += data.monto;
-            if (data.tipo === 'gasto') gastosMes += data.monto;
+            if (data.tipo === 'ingreso') {
+                ingresosMes += data.monto;
+                // Agrupar ingresos por cliente/categoría
+                desgloseIngresosGlobal[data.descripcion] = (desgloseIngresosGlobal[data.descripcion] || 0) + data.monto;
+            }
+            if (data.tipo === 'gasto') {
+                gastosMes += data.monto;
+            }
             
             let icono = data.tipo === 'ingreso' ? '🟢' : '🔴';
             let colorMonto = data.tipo === 'ingreso' ? '#29c87c' : '#ff3b4a';
@@ -131,6 +194,24 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     actualizarPanelPrincipal();
 });
 
+// Dinámica del Formulario (Gasto vs Ingreso)
+document.getElementById('tipo-movimiento').addEventListener('change', (e) => {
+    const inputGasto = document.getElementById('descripcion-gasto');
+    const selectIngreso = document.getElementById('categoria-ingreso');
+    
+    if(e.target.value === 'ingreso') {
+        inputGasto.style.display = 'none';
+        inputGasto.removeAttribute('required');
+        selectIngreso.style.display = 'block';
+        selectIngreso.setAttribute('required', 'true');
+    } else {
+        inputGasto.style.display = 'block';
+        inputGasto.setAttribute('required', 'true');
+        selectIngreso.style.display = 'none';
+        selectIngreso.removeAttribute('required');
+    }
+});
+
 // Guardar Movimiento Manual
 const campoFecha = document.getElementById('fecha-movimiento');
 if(campoFecha) campoFecha.valueAsDate = new Date();
@@ -139,7 +220,9 @@ document.getElementById('form-movimiento').addEventListener('submit', async (e) 
     e.preventDefault();
     const tipo = document.getElementById('tipo-movimiento').value;
     const monto = parseFloat(document.getElementById('monto').value);
-    const descripcion = document.getElementById('descripcion').value; 
+    
+    // Captura descripción de texto (si es gasto) o el select de categoría (si es ingreso)
+    const descripcion = tipo === 'ingreso' ? document.getElementById('categoria-ingreso').value : document.getElementById('descripcion-gasto').value; 
     
     const fechaElegida = document.getElementById('fecha-movimiento').value;
     const fechaGuardar = new Date(fechaElegida + 'T12:00:00');
@@ -150,15 +233,15 @@ document.getElementById('form-movimiento').addEventListener('submit', async (e) 
         });
         document.getElementById('form-movimiento').reset();
         document.getElementById('fecha-movimiento').valueAsDate = new Date();
+        // Disparar evento change para volver al estado por defecto
+        document.getElementById('tipo-movimiento').dispatchEvent(new Event('change'));
     } catch (error) { console.error("Error: ", error); }
 });
 
-// 3. FUNCIÓN CENTRAL DE ACTUALIZACIÓN VISUAL
+// 4. FUNCIÓN CENTRAL DE ACTUALIZACIÓN VISUAL
 function actualizarPanelPrincipal() {
-    // 3.1 Actualizar Saldo Real (Histórico)
     document.getElementById('saldo-actual-top').innerText = `S/ ${saldoEsperadoGlobal.toFixed(2)}`;
 
-    // 3.2 Actualizar Dinero Libre (Saldo Actual - Fijos Pendientes de este mes)
     let dineroLibre = saldoEsperadoGlobal - fijosPendientesGlobal;
     const elementoLibre = document.getElementById('dinero-libre');
     
@@ -170,26 +253,31 @@ function actualizarPanelPrincipal() {
         elementoLibre.style.color = "#ff3b4a"; 
     }
 
-    // 3.3 Actualizar Resumen Mensual (Textos pequeños)
     document.getElementById('resumen-ingresos').innerText = `S/ ${ingresosMesGlobal.toFixed(2)}`;
+    
+    // Pintar desglose de clientes
+    const boxDesglose = document.getElementById('desglose-clientes');
+    boxDesglose.innerHTML = '';
+    for (const [cliente, total] of Object.entries(desgloseIngresosGlobal)) {
+        if (!cliente.includes('(Auto)')) {
+            boxDesglose.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><span>${cliente}:</span> <strong>S/ ${total.toFixed(2)}</strong></div>`;
+        }
+    }
+    if (boxDesglose.innerHTML === '') boxDesglose.innerHTML = 'Sin ingresos aún.';
+
     document.getElementById('resumen-gastos').innerText = `S/ ${gastosMesGlobal.toFixed(2)}`;
     document.getElementById('resumen-fijos').innerText = `S/ ${totalFijosGlobal.toFixed(2)}`;
 
-    // 3.4 Actualizar Balance Neto del Mes
     let balanceNeto = ingresosMesGlobal - gastosMesGlobal - totalFijosGlobal;
     const balanceEl = document.getElementById('balance-neto');
     balanceEl.innerText = `S/ ${balanceNeto.toFixed(2)}`;
     
-    if (balanceNeto > 0) {
-        balanceEl.style.color = "#29c87c"; 
-    } else if (balanceNeto < 0) {
-        balanceEl.style.color = "#ff3b4a"; 
-    } else {
-        balanceEl.style.color = "#ffffff";
-    }
+    if (balanceNeto > 0) balanceEl.style.color = "#29c87c"; 
+    else if (balanceNeto < 0) balanceEl.style.color = "#ff3b4a"; 
+    else balanceEl.style.color = "#ffffff";
 }
 
-// 4. CIERRE DE BANCO: AJUSTE AUTOMÁTICO DE GASTOS INVISIBLES
+// 5. CIERRE DE BANCO (AHORA CON RANGO DE FECHAS)
 const btnActualizarSaldo = document.getElementById('btn-actualizar-saldo');
 if(btnActualizarSaldo) {
     btnActualizarSaldo.addEventListener('click', async () => {
@@ -199,17 +287,18 @@ if(btnActualizarSaldo) {
         const saldoReal = parseFloat(saldoRealInput);
         const diferencia = saldoReal - saldoEsperadoGlobal;
 
-        // Si la diferencia es de centavos, no hacemos nada
         if(Math.abs(diferencia) < 0.05) {
             alert("¡Tu cuenta cuadra perfectamente!");
             document.getElementById('saldo-real').value = '';
             return;
         }
 
-        // Detectamos si es fuga de dinero o ingreso no mapeado
         let tipoAjuste = diferencia < 0 ? 'gasto' : 'ingreso';
-        let descripcionAjuste = diferencia < 0 ? '☕ Gastos diarios menores (Auto)' : '✨ Ingreso no identificado (Auto)';
         let montoAjuste = Math.abs(diferencia);
+        
+        // Construcción del texto de fechas
+        let fechaDesdeTexto = ultimaFechaMovGlobal ? ultimaFechaMovGlobal.toLocaleDateString() : 'Ayer';
+        let descripcionAjuste = diferencia < 0 ? `☕ Gastos invisibles (Del ${fechaDesdeTexto} al Hoy)` : `✨ Ingreso no mapeado (Del ${fechaDesdeTexto} al Hoy)`;
 
         try {
             await addDoc(collection(db, "movimientos"), {
@@ -221,7 +310,7 @@ if(btnActualizarSaldo) {
     });
 }
 
-// Función global para eliminar (sirve para fijos y movimientos)
+// Función global para eliminar (sirve para fijos, movimientos y categorías)
 window.eliminarRegistro = async function(coleccion, id) {
     if(confirm("¿Borrar este registro? Esto recalculará todo.")) {
         await deleteDoc(doc(db, coleccion, id));
