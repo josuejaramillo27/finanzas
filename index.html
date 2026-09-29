@@ -16,41 +16,44 @@
 
     <main class="dashboard-container">
         
-        <!-- PANEL SUPERIOR: SALDO, DINERO LIBRE Y CIERRE DE BANCO -->
+        <!-- PANEL SUPERIOR: SALDO Y DINERO LIBRE -->
         <section class="card mac-glass full-width" style="text-align: center; border-top: 4px solid #29c87c;">
             <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-around; margin-bottom: 20px;">
-                <!-- Saldo Total -->
                 <div style="flex: 1; min-width: 250px;">
                     <p style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Saldo Real en Cuenta</p>
                     <h2 id="saldo-actual-top" style="font-size: 2.5rem; color: #ffffff; margin: 10px 0;">S/ 0.00</h2>
                 </div>
-                <!-- Dinero Libre -->
                 <div style="flex: 1; min-width: 250px; background: rgba(41, 200, 124, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(41, 200, 124, 0.3);">
                     <p style="font-size: 0.85rem; color: #29c87c; margin-bottom: 5px;"><i class="fa-solid fa-unlock-keyhole"></i> Libre para Gastar Hoy</p>
                     <h3 id="dinero-libre" style="font-size: 1.8rem; color: #29c87c;">S/ 0.00</h3>
-                    <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px;">(Descontando fijos pendientes del mes)</p>
+                    
+                    <!-- NUEVO: RADAR DE PRÓXIMO GASTO FIJO -->
+                    <div id="alerta-proximo-gasto" style="margin-top: 10px; font-size: 0.8rem; color: #ffb800; background: rgba(255, 184, 0, 0.1); padding: 8px; border-radius: 8px; display: none;">
+                        <!-- Se llena con JS -->
+                    </div>
                 </div>
             </div>
 
             <hr>
             
-            <!-- Cierre Automático -->
             <p style="font-size: 0.9rem; margin-bottom: 10px;">¿Cuánto dinero tienes en tu Yape/Banco ahora mismo?</p>
             <div style="display: flex; gap: 10px; max-width: 400px; margin: 0 auto;">
                 <input type="number" id="saldo-real" placeholder="S/ Total en el banco" step="0.01">
                 <button id="btn-actualizar-saldo" class="btn-pildora btn-teal" style="width: auto;">Ajustar</button>
             </div>
-            <p style="font-size: 0.75rem; margin-top: 8px; color: #aaa;">Si hay diferencia, la app registrará el gasto/ingreso invisible automáticamente.</p>
+            <p style="font-size: 0.75rem; margin-top: 8px; color: #aaa;">Si hay diferencia, la app registrará el gasto/ingreso invisible con sus fechas.</p>
         </section>
 
-        <!-- RESUMEN DEL MES ACTUAL -->
+        <!-- RESUMEN DEL MES ACTUAL (CON DESGLOSE DE CLIENTES) -->
         <section class="card mac-glass full-width" style="border-top: 4px solid #0088ff;">
             <h2 class="color-teal" style="justify-content: center;"><i class="fa-solid fa-calendar-day"></i> Resumen de <span id="mes-actual-nombre" style="margin-left: 5px;">Mes</span></h2>
             
             <div class="resumen-grid">
-                <div class="resumen-item">
+                <div class="resumen-item" style="display: flex; flex-direction: column;">
                     <p>Ingresos del Mes</p>
                     <h3 id="resumen-ingresos" class="color-teal">S/ 0.00</h3>
+                    <!-- Aquí aparecerá cuánto ganaste con cada cliente -->
+                    <div id="desglose-clientes" style="font-size: 0.75rem; color: #aaa; margin-top: 8px; text-align: left; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 5px;"></div>
                 </div>
                 <div class="resumen-item">
                     <p>Gastos del Mes</p>
@@ -67,41 +70,58 @@
             <h2 id="balance-neto" style="text-align: center; font-size: 2.5rem; color: #ffffff; margin-top: 10px;">S/ 0.00</h2>
         </section>
 
-        <!-- COLUMNA IZQUIERDA EN PC: REGISTRAR MOVIMIENTOS -->
+        <!-- COLUMNA IZQUIERDA: REGISTRAR MOVIMIENTO -->
         <section class="card mac-glass">
             <h2 class="color-amarillo"><i class="fa-solid fa-pen-nib"></i> Registrar Movimiento</h2>
-            <p style="font-size: 0.8rem; margin-bottom: 15px;">Anota gastos fuertes o ingresos. Lo pequeño se ajusta arriba.</p>
             <form id="form-movimiento">
                 <select id="tipo-movimiento" required>
+                    <option value="gasto" selected>🔴 Gasté dinero</option>
                     <option value="ingreso">🟢 Ingresó dinero</option>
-                    <option value="gasto">🔴 Gasté dinero</option>
                 </select>
                 
                 <input type="number" id="monto" placeholder="Monto en S/" step="0.01" required>
-                <input type="text" id="descripcion" placeholder="¿En qué fue? (Ej. Sueldo, Zapatillas...)" required>
-                <input type="date" id="fecha-movimiento" required>
+                
+                <!-- ESTO CAMBIA DINÁMICAMENTE -->
+                <input type="text" id="descripcion-gasto" placeholder="¿En qué fue? (Ej. Zapatillas...)" required>
+                <select id="categoria-ingreso" style="display: none;">
+                    <option value="">Selecciona cliente/categoría...</option>
+                </select>
 
+                <input type="date" id="fecha-movimiento" required>
                 <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%;"><i class="fa-solid fa-check"></i> Registrar</button>
             </form>
         </section>
 
-        <!-- COLUMNA DERECHA EN PC: GASTOS FIJOS -->
-        <section class="card mac-glass">
-            <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Gastos Fijos (Mes a Mes)</h2>
-            <p style="font-size: 0.8rem; margin-bottom: 15px;">Tus pagos obligatorios (Internet, Alquiler, etc).</p>
-            <form id="form-gasto-fijo" style="margin-bottom: 20px;">
-                <input type="text" id="nombre-fijo" placeholder="Ej. Internet" required>
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" id="monto-fijo" placeholder="S/ Monto" step="0.01" required>
-                    <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
-                </div>
-                <button type="submit" class="btn-pildora btn-rojo" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-plus"></i> Agregar Fijo</button>
-            </form>
-            <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
-        </section>
+        <!-- COLUMNA DERECHA: GASTOS FIJOS Y CATEGORÍAS -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <section class="card mac-glass" style="margin-bottom: 0;">
+                <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Gastos Fijos (Mes a Mes)</h2>
+                <form id="form-gasto-fijo" style="margin-bottom: 20px;">
+                    <input type="text" id="nombre-fijo" placeholder="Ej. Internet" required>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="monto-fijo" placeholder="S/ Monto" step="0.01" required>
+                        <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
+                    </div>
+                    <button type="submit" class="btn-pildora btn-rojo" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-plus"></i> Agregar Fijo</button>
+                </form>
+                <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
+            </section>
+
+            <!-- NUEVO: SECCIÓN DE CATEGORÍAS DE INGRESO -->
+            <section class="card mac-glass" style="margin-bottom: 0;">
+                <h2 class="color-teal"><i class="fa-solid fa-address-book"></i> Tus Clientes/Fuentes</h2>
+                <form id="form-categoria" style="margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="nombre-categoria" placeholder="Ej. Hedam, Juan..." required style="margin-bottom: 0;">
+                        <button type="submit" class="btn-pildora btn-teal"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </form>
+                <ul id="lista-categorias" style="list-style: none; padding: 0;"></ul>
+            </section>
+        </div>
 
         <!-- HISTORIAL COMPLETO -->
-        <section class="card mac-glass full-width">
+        <section class="card mac-glass full-width" style="margin-top: 20px;">
             <h2 class="color-morado"><i class="fa-solid fa-list"></i> Historial del Mes</h2>
             <ul id="lista-historial" style="list-style: none; padding: 0;"></ul>
         </section>
