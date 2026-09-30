@@ -6,21 +6,14 @@
 }
 
 html {
-    scroll-behavior: smooth; /* Hace que al tocar los botones baje de forma fluida */
+    scroll-behavior: smooth;
 }
 
+/* 1. FONDO PRINCIPAL NEGRO MATE */
 body {
-    background: linear-gradient(-45deg, #15151e, #1c1c28, #0a1128, #12121c);
-    background-size: 400% 400%;
-    animation: nadoBallena 18s ease-in-out infinite;
-    color: #f5f5f7;
+    background-color: #121212;
+    color: #F4F4F5;
     padding-bottom: 50px;
-}
-
-@keyframes nadoBallena {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
 }
 
 header {
@@ -35,15 +28,14 @@ main {
     padding: 0 15px;
 }
 
-.mac-glass {
-    background: rgba(44, 44, 46, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 18px;
+/* 2. SECCIONES: GRIS CARBÓN ELEVADO */
+.card, .mac-glass {
+    background: #1E1E1E;
+    border: 1px solid #27272A;
+    border-radius: 16px;
     padding: 25px;
     margin-bottom: 30px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 h2 {
@@ -53,13 +45,14 @@ h2 {
     display: flex;
     align-items: center;
     gap: 10px;
+    color: #F4F4F5;
 }
 
-/* Colores para los títulos de cada sección */
-.color-teal { color: #29c87c; }
-.color-morado { color: #c048db; }
-.color-amarillo { color: #ffb800; }
-.color-rojo { color: #ff3b4a; }
+/* 3. COLORES DE ACENTO UNIFICADOS */
+.color-teal { color: #10B981; } /* Verde Esmeralda para títulos positivos */
+.color-morado { color: #F4F4F5; } /* Unificado a Blanco Humo */
+.color-amarillo { color: #F4F4F5; } /* Unificado a Blanco Humo */
+.color-rojo { color: #EF4444; } /* Rojo Carmesí para alertas/gastos */
 
 .monto-destacado {
     font-size: 2rem;
@@ -69,7 +62,7 @@ h2 {
 
 hr {
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #27272A;
     margin: 20px 0;
 }
 
@@ -80,57 +73,73 @@ hr {
     margin-bottom: 30px;
 }
 
+/* 4. BOTONES: DISEÑO ELEGANTE Y UNIFICADO */
 .btn-pildora {
     padding: 12px 15px;
-    border-radius: 30px;
-    font-weight: 700;
-    font-size: 0.9rem;
+    border-radius: 8px; /* Bordes menos redondeados para un look más serio */
+    font-weight: 600;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    border: none;
-    transition: transform 0.2s ease;
-    text-decoration: none; /* Para que los enlaces no tengan línea abajo */
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    text-decoration: none;
 }
 
 .btn-pildora:hover {
     transform: translateY(-2px);
 }
 
-.btn-rojo { background-color: #ff3b4a; color: white; }
-.btn-amarillo { background-color: #ffb800; color: #1a1a1a; } /* Letra oscura para contraste */
-.btn-morado { background: linear-gradient(135deg, #c048db, #f94185); color: white; }
-.btn-teal { background: linear-gradient(135deg, #0088ff, #29c87c); color: white; }
+/* Todos los botones principales ahora son Verde Esmeralda */
+.btn-teal, .btn-amarillo, .btn-morado { 
+    background-color: #10B981; 
+    color: #121212; 
+}
+.btn-teal:hover, .btn-amarillo:hover, .btn-morado:hover {
+    background-color: #059669;
+}
 
-/* Botón pequeño para eliminar gastos fijos */
+/* Botones destructivos / gastos mantienen el rojo */
+.btn-rojo { 
+    background-color: #EF4444; 
+    color: #FFFFFF; 
+}
+.btn-rojo:hover {
+    background-color: #DC2626;
+}
+
 .btn-eliminar {
     padding: 6px 12px;
     font-size: 0.8rem;
 }
 
+/* 5. CAMPOS DE TEXTO Y FORMULARIOS */
 input, select {
     width: 100%;
     padding: 14px;
     margin-bottom: 15px;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: white;
-    border-radius: 12px;
+    background: #121212; /* Fondo súper oscuro para contrastar con la sección */
+    border: 1px solid #3F3F46;
+    color: #F4F4F5;
+    border-radius: 8px;
     font-size: 1rem;
     outline: none;
+    transition: border 0.2s ease;
 }
 
 input:focus, select:focus {
-    border: 1px solid #0088ff;
+    border: 1px solid #10B981; /* Borde verde al escribir */
 }
 
 select option {
-    background-color: #2c2c2e;
-    color: white;
+    background-color: #1E1E1E;
+    color: #F4F4F5;
 }
 
+/* 6. LISTAS E HISTORIAL */
 .regla-lista { list-style: none; }
 .regla-lista li {
     margin-bottom: 12px;
@@ -139,24 +148,13 @@ select option {
     align-items: center;
 }
 
-.dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 10px;
-}
-.dot-50 { background-color: #ff3b4a; }
-.dot-30 { background-color: #ffb800; }
-.dot-20 { background-color: #29c87c; }
-
 #lista-fijos { list-style: none; }
 #lista-fijos li {
-    background: rgba(0, 0, 0, 0.3);
+    background: #121212; /* Contraste interno */
     padding: 15px;
-    border-radius: 12px;
+    border-radius: 8px;
     margin-bottom: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid #27272A;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -168,16 +166,10 @@ select option {
     gap: 5px;
 }
 
-.canvas-container {
-    width: 100%;
-    max-width: 250px;
-    margin: 20px auto;
-}
-
 /* --- ADAPTACIÓN PARA PC Y CELULAR (CSS GRID) --- */
 .dashboard-container {
     display: grid;
-    grid-template-columns: 1fr; /* 1 columna en celular */
+    grid-template-columns: 1fr; 
     gap: 20px;
     align-items: start;
 }
@@ -187,15 +179,15 @@ select option {
     justify-content: space-between;
     text-align: center;
     margin-top: 15px;
-    background: rgba(0,0,0,0.2);
+    background: #121212;
     padding: 15px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    border: 1px solid #27272A;
 }
 
 .resumen-item p {
     font-size: 0.8rem;
-    color: #aaa;
+    color: #A1A1AA; /* Letras secundarias */
     margin-bottom: 5px;
 }
 
@@ -203,17 +195,16 @@ select option {
     font-size: 1.3rem;
 }
 
-/* Pantallas grandes (PC / Tablets) */
 @media (min-width: 768px) {
     main {
-        max-width: 900px; /* Más ancho para PC */
+        max-width: 900px; 
     }
     
     .dashboard-container {
-        grid-template-columns: 1fr 1fr; /* 2 columnas en PC */
+        grid-template-columns: 1fr 1fr; 
     }
     
     .full-width {
-        grid-column: 1 / -1; /* Ocupa las 2 columnas */
+        grid-column: 1 / -1; 
     }
 }
