@@ -60,14 +60,18 @@ document.getElementById('form-categoria').addEventListener('submit', async (e) =
     } catch (error) { console.error(error); }
 });
 
-// 2. ESCUCHAR GASTOS FIJOS (CON RADAR DE PRÓXIMO PAGO)
+// 2. ESCUCHAR GASTOS FIJOS (CON RADAR INTELIGENTE DE FIN DE MES)
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
     let sumaPendientes = 0;
     let proximoGasto = null;
     let minDiasFaltantes = 999;
-    const diaActual = new Date().getDate(); 
+    
+    // Herramientas de tiempo
+    const fechaHoy = new Date();
+    const diaActual = fechaHoy.getDate(); 
+    const diasEnMesActual = new Date(fechaHoy.getFullYear(), fechaHoy.getMonth() + 1, 0).getDate();
     
     const listaFijos = document.getElementById('lista-fijos');
     if(listaFijos) listaFijos.innerHTML = '';
@@ -77,29 +81,48 @@ onSnapshot(qFijos, (querySnapshot) => {
         sumaFijos += data.monto;
         
         let estadoGasto = '';
+        let diasFaltantes = 0;
+        let bloquearDinero = false;
+
+        // Calcular cuántos días faltan realmente (incluso si el pago es el próximo mes)
         if (data.dia >= diaActual) {
-            sumaPendientes += data.monto; 
-            estadoGasto = '<span style="color: #ffb800; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
-            
-            // Lógica para detectar el más cercano
-            let diasFaltantes = data.dia - diaActual;
-            if (diasFaltantes < minDiasFaltantes) {
-                minDiasFaltantes = diasFaltantes;
-                proximoGasto = data;
-            }
+            diasFaltantes = data.dia - diaActual;
         } else {
-            estadoGasto = '<span style="color: #29c87c; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
+            diasFaltantes = (diasEnMesActual - diaActual) + data.dia;
+        }
+
+        // LÓGICA DE PROTECCIÓN (Escudo de 5 días)
+        if (data.dia >= diaActual) {
+            bloquearDinero = true;
+            estadoGasto = '<span style="color: #F4F4F5; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
+        } else if (diasFaltantes <= 5) { 
+            // Cruce de mes: Faltan 5 días o menos para el próximo mes
+            bloquearDinero = true;
+            estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Próximo mes: ¡Se acerca!)</span>';
+        } else {
+            bloquearDinero = false;
+            estadoGasto = '<span style="color: #3F3F46; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
+        }
+
+        if (bloquearDinero) {
+            sumaPendientes += data.monto;
+        }
+        
+        // Detectar el más cercano para el Radar
+        if (diasFaltantes < minDiasFaltantes) {
+            minDiasFaltantes = diasFaltantes;
+            proximoGasto = data;
         }
         
         listaFijos.innerHTML += `
-            <li style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05);">
+            <li style="background: #121212; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #27272A;">
                 <div>
-                    <strong>${data.nombre}</strong> ${estadoGasto} <br>
-                    <span style="font-size: 0.8rem; color: #aaa;">Día de pago: ${data.dia}</span>
+                    <strong style="color: #F4F4F5;">${data.nombre}</strong> ${estadoGasto} <br>
+                    <span style="font-size: 0.8rem; color: #A1A1AA;">Día de pago: ${data.dia}</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <strong>S/ ${data.monto.toFixed(2)}</strong>
-                    <button onclick="eliminarRegistro('gastos_fijos', '${documento.id}')" style="background: none; border: none; color: #ff3b4a; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+                    <strong style="color: #F4F4F5;">S/ ${data.monto.toFixed(2)}</strong>
+                    <button onclick="eliminarRegistro('gastos_fijos', '${documento.id}')" style="background: none; border: none; color: #EF4444; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </li>
         `;
@@ -108,29 +131,21 @@ onSnapshot(qFijos, (querySnapshot) => {
     totalFijosGlobal = sumaFijos;
     fijosPendientesGlobal = sumaPendientes;
     
-    // Activar el Radar de Próximo Gasto
+    // Activar el Radar Visual (Estilo Negro Mate)
     const alertaGasto = document.getElementById('alerta-proximo-gasto');
-    if (proximoGasto) {
+    if (proximoGasto && minDiasFaltantes <= 5) {
         alertaGasto.style.display = 'block';
+        alertaGasto.style.background = '#1E1E1E';
+        alertaGasto.style.border = '1px solid #10B981';
+        alertaGasto.style.color = '#A1A1AA';
+        
         let textoDias = minDiasFaltantes === 0 ? "Hoy mismo" : (minDiasFaltantes === 1 ? "Mañana" : `en ${minDiasFaltantes} días`);
-        alertaGasto.innerHTML = `<i class="fa-solid fa-bell"></i> Próximo fijo: <strong>${proximoGasto.nombre} (S/ ${proximoGasto.monto})</strong> ${textoDias}. <br>Puedes gastar el Dinero Libre de arriba con seguridad.`;
+        alertaGasto.innerHTML = `<i class="fa-solid fa-bell" style="color: #10B981;"></i> Próximo fijo: <strong style="color: #F4F4F5;">${proximoGasto.nombre}</strong> se paga ${textoDias}. <br><span style="font-size: 0.7rem;">(Sus S/ ${proximoGasto.monto.toFixed(2)} ya están apartados y protegidos).</span>`;
     } else {
         alertaGasto.style.display = 'none';
     }
     
     actualizarPanelPrincipal();
-});
-
-// Guardar Gasto Fijo
-document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nombre = document.getElementById('nombre-fijo').value;
-    const monto = parseFloat(document.getElementById('monto-fijo').value);
-    const dia = parseInt(document.getElementById('dia-fijo').value);
-    try {
-        await addDoc(collection(db, "gastos_fijos"), { nombre, monto, dia });
-        document.getElementById('form-gasto-fijo').reset();
-    } catch (error) { console.error(error); }
 });
 
 // 3. ESCUCHAR MOVIMIENTOS
