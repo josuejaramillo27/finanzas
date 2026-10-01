@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // TODO: PEGA AQUÍ TU firebaseConfig REAL
 const firebaseConfig = {
@@ -26,8 +26,8 @@ let fijosPendientesGlobal = 0;
 let ingresosMesGlobal = 0;
 let gastosMesGlobal = 0;
 let saldoEsperadoGlobal = 0;   
-let ultimaFechaMovGlobal = null; // Para rastrear el último movimiento
-let desgloseIngresosGlobal = {}; // Para el resumen por clientes
+let ultimaFechaMovGlobal = null; 
+let desgloseIngresosGlobal = {}; 
 
 // 1. ESCUCHAR CATEGORÍAS DE CLIENTES
 const qCategorias = query(collection(db, "categorias_ingreso"), orderBy("nombre", "asc"));
@@ -60,7 +60,7 @@ document.getElementById('form-categoria').addEventListener('submit', async (e) =
     } catch (error) { console.error(error); }
 });
 
-// 2. ESCUCHAR GASTOS FIJOS (CON RADAR INTELIGENTE DE FIN DE MES)
+// 2. ESCUCHAR GASTOS FIJOS (BOTÓN PAGADO Y BARRA VERDE/ROJA)
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
@@ -68,10 +68,11 @@ onSnapshot(qFijos, (querySnapshot) => {
     let proximoGasto = null;
     let minDiasFaltantes = 999;
     
-    // Herramientas de tiempo
     const fechaHoy = new Date();
     const diaActual = fechaHoy.getDate(); 
-    const diasEnMesActual = new Date(fechaHoy.getFullYear(), fechaHoy.getMonth() + 1, 0).getDate();
+    const mesActualNum = fechaHoy.getMonth();
+    const anioActualNum = fechaHoy.getFullYear();
+    const diasEnMesActual = new Date(anioActualNum, mesActualNum + 1, 0).getDate();
     
     const listaFijos = document.getElementById('lista-fijos');
     if(listaFijos) listaFijos.innerHTML = '';
@@ -80,48 +81,63 @@ onSnapshot(qFijos, (querySnapshot) => {
         const data = documento.data();
         sumaFijos += data.monto;
         
-        let estadoGasto = '';
         let diasFaltantes = 0;
         let bloquearDinero = false;
 
-        // Calcular cuántos días faltan realmente (incluso si el pago es el próximo mes)
         if (data.dia >= diaActual) {
             diasFaltantes = data.dia - diaActual;
         } else {
             diasFaltantes = (diasEnMesActual - diaActual) + data.dia;
         }
 
-        // LÓGICA DE PROTECCIÓN (Escudo de 5 días)
-        if (data.dia >= diaActual) {
-            bloquearDinero = true;
-            estadoGasto = '<span style="color: #F4F4F5; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
-        } else if (diasFaltantes <= 5) { 
-            // Cruce de mes: Faltan 5 días o menos para el próximo mes
-            bloquearDinero = true;
-            estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Próximo mes: ¡Se acerca!)</span>';
-        } else {
+        // Determinar a qué mes/año pertenece el cobro
+        let mesFijo = mesActualNum;
+        let anioFijo = anioActualNum;
+        if (data.dia < diaActual && diasFaltantes <= 5) {
+            mesFijo = mesActualNum + 1;
+            if (mesFijo > 11) { mesFijo = 0; anioFijo++; }
+        }
+        let idMesCobro = `${mesFijo}-${anioFijo}`;
+        
+        // Comprobar si tú mismo lo marcaste manualmente como ✅ "Pagado"
+        let yaPagado = data.mesPagado === idMesCobro;
+
+        let estadoGasto = '';
+
+        if (yaPagado) {
             bloquearDinero = false;
-            estadoGasto = '<span style="color: #3F3F46; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
+            estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Pagado)</span>';
+        } else {
+            if (data.dia >= diaActual) {
+                bloquearDinero = true;
+                estadoGasto = '<span style="color: #F4F4F5; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
+            } else if (diasFaltantes <= 5) { 
+                bloquearDinero = true;
+                estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Próximo mes: ¡Se acerca!)</span>';
+            } else {
+                bloquearDinero = false;
+                estadoGasto = '<span style="color: #3F3F46; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
+            }
         }
 
         if (bloquearDinero) {
             sumaPendientes += data.monto;
         }
         
-        // Detectar el más cercano para el Radar
-        if (diasFaltantes < minDiasFaltantes) {
+        if (!yaPagado && diasFaltantes < minDiasFaltantes) {
             minDiasFaltantes = diasFaltantes;
             proximoGasto = data;
         }
         
         listaFijos.innerHTML += `
-            <li style="background: #121212; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #27272A;">
+            <li style="background: #1E1E1E; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #27272A;">
                 <div>
                     <strong style="color: #F4F4F5;">${data.nombre}</strong> ${estadoGasto} <br>
                     <span style="font-size: 0.8rem; color: #A1A1AA;">Día de pago: ${data.dia}</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <strong style="color: #F4F4F5;">S/ ${data.monto.toFixed(2)}</strong>
+                    ${!yaPagado ? `<button onclick="marcarPagado('${documento.id}', '${idMesCobro}')" style="background: none; border: none; color: #10B981; cursor: pointer; font-size: 1.2rem;" title="Marcar como pagado">✅</button>` : `<button onclick="deshacerPago('${documento.id}')" style="background: none; border: none; color: #A1A1AA; cursor: pointer;" title="Deshacer pago"><i class="fa-solid fa-rotate-left"></i></button>`}
                     <button onclick="eliminarRegistro('gastos_fijos', '${documento.id}')" style="background: none; border: none; color: #EF4444; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </li>
@@ -131,22 +147,37 @@ onSnapshot(qFijos, (querySnapshot) => {
     totalFijosGlobal = sumaFijos;
     fijosPendientesGlobal = sumaPendientes;
     
-    // Activar el Radar Visual (Estilo Negro Mate)
     const alertaGasto = document.getElementById('alerta-proximo-gasto');
     if (proximoGasto && minDiasFaltantes <= 5) {
         alertaGasto.style.display = 'block';
-        alertaGasto.style.background = '#1E1E1E';
-        alertaGasto.style.border = '1px solid #10B981';
-        alertaGasto.style.color = '#A1A1AA';
-        
         let textoDias = minDiasFaltantes === 0 ? "Hoy mismo" : (minDiasFaltantes === 1 ? "Mañana" : `en ${minDiasFaltantes} días`);
-        alertaGasto.innerHTML = `<i class="fa-solid fa-bell" style="color: #10B981;"></i> Próximo fijo: <strong style="color: #F4F4F5;">${proximoGasto.nombre}</strong> se paga ${textoDias}. <br><span style="font-size: 0.7rem;">(Sus S/ ${proximoGasto.monto.toFixed(2)} ya están apartados y protegidos).</span>`;
+        alertaGasto.innerHTML = `<i class="fa-solid fa-bell"></i> Próximo fijo: <strong>${proximoGasto.nombre}</strong> se paga ${textoDias}. <br>Ya apartamos sus S/ ${proximoGasto.monto.toFixed(2)} en la barra roja.`;
     } else {
         alertaGasto.style.display = 'none';
     }
     
     actualizarPanelPrincipal();
 });
+
+// Guardar y Actualizar Gasto Fijo
+document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-fijo').value;
+    const monto = parseFloat(document.getElementById('monto-fijo').value);
+    const dia = parseInt(document.getElementById('dia-fijo').value);
+    try {
+        await addDoc(collection(db, "gastos_fijos"), { nombre, monto, dia, mesPagado: null });
+        document.getElementById('form-gasto-fijo').reset();
+    } catch (error) { console.error(error); }
+});
+
+window.marcarPagado = async function(id, idMesCobro) {
+    await updateDoc(doc(db, "gastos_fijos", id), { mesPagado: idMesCobro });
+};
+
+window.deshacerPago = async function(id) {
+    await updateDoc(doc(db, "gastos_fijos", id), { mesPagado: null });
+};
 
 // 3. ESCUCHAR MOVIMIENTOS
 const qMovimientos = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
@@ -159,7 +190,7 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     const listaHistorial = document.getElementById('lista-historial');
     if(listaHistorial) listaHistorial.innerHTML = '';
     
-    let isFirst = true; // Para capturar la fecha más reciente
+    let isFirst = true;
 
     querySnapshot.forEach((documento) => {
         const data = documento.data();
@@ -178,7 +209,6 @@ onSnapshot(qMovimientos, (querySnapshot) => {
         if(mesDoc === mesActual && anioDoc === anioActual) {
             if (data.tipo === 'ingreso') {
                 ingresosMes += data.monto;
-                // Agrupar ingresos por cliente/categoría
                 desgloseIngresosGlobal[data.descripcion] = (desgloseIngresosGlobal[data.descripcion] || 0) + data.monto;
             }
             if (data.tipo === 'gasto') {
@@ -209,7 +239,6 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     actualizarPanelPrincipal();
 });
 
-// Dinámica del Formulario (Gasto vs Ingreso)
 document.getElementById('tipo-movimiento').addEventListener('change', (e) => {
     const inputGasto = document.getElementById('descripcion-gasto');
     const selectIngreso = document.getElementById('categoria-ingreso');
@@ -227,7 +256,6 @@ document.getElementById('tipo-movimiento').addEventListener('change', (e) => {
     }
 });
 
-// Guardar Movimiento Manual
 const campoFecha = document.getElementById('fecha-movimiento');
 if(campoFecha) campoFecha.valueAsDate = new Date();
 
@@ -236,9 +264,7 @@ document.getElementById('form-movimiento').addEventListener('submit', async (e) 
     const tipo = document.getElementById('tipo-movimiento').value;
     const monto = parseFloat(document.getElementById('monto').value);
     
-    // Captura descripción de texto (si es gasto) o el select de categoría (si es ingreso)
     const descripcion = tipo === 'ingreso' ? document.getElementById('categoria-ingreso').value : document.getElementById('descripcion-gasto').value; 
-    
     const fechaElegida = document.getElementById('fecha-movimiento').value;
     const fechaGuardar = new Date(fechaElegida + 'T12:00:00');
 
@@ -248,7 +274,6 @@ document.getElementById('form-movimiento').addEventListener('submit', async (e) 
         });
         document.getElementById('form-movimiento').reset();
         document.getElementById('fecha-movimiento').valueAsDate = new Date();
-        // Disparar evento change para volver al estado por defecto
         document.getElementById('tipo-movimiento').dispatchEvent(new Event('change'));
     } catch (error) { console.error("Error: ", error); }
 });
@@ -267,10 +292,22 @@ function actualizarPanelPrincipal() {
         elementoLibre.innerText = `S/ 0.00`;
         elementoLibre.style.color = "#ff3b4a"; 
     }
+    
+    // DINÁMICA DE LA BARRA VERDE/ROJA
+    const barraRoja = document.getElementById('barra-roja-fijos');
+    if (barraRoja) {
+        let porcentajeRojo = 0;
+        if (saldoEsperadoGlobal > 0) {
+            porcentajeRojo = (fijosPendientesGlobal / saldoEsperadoGlobal) * 100;
+            if (porcentajeRojo > 100) porcentajeRojo = 100;
+        } else if (fijosPendientesGlobal > 0) {
+            porcentajeRojo = 100;
+        }
+        barraRoja.style.width = `${porcentajeRojo}%`;
+    }
 
     document.getElementById('resumen-ingresos').innerText = `S/ ${ingresosMesGlobal.toFixed(2)}`;
     
-    // Pintar desglose de clientes
     const boxDesglose = document.getElementById('desglose-clientes');
     boxDesglose.innerHTML = '';
     for (const [cliente, total] of Object.entries(desgloseIngresosGlobal)) {
@@ -292,7 +329,7 @@ function actualizarPanelPrincipal() {
     else balanceEl.style.color = "#ffffff";
 }
 
-// 5. CIERRE DE BANCO (AHORA CON RANGO DE FECHAS)
+// 5. CIERRE DE BANCO
 const btnActualizarSaldo = document.getElementById('btn-actualizar-saldo');
 if(btnActualizarSaldo) {
     btnActualizarSaldo.addEventListener('click', async () => {
@@ -311,7 +348,6 @@ if(btnActualizarSaldo) {
         let tipoAjuste = diferencia < 0 ? 'gasto' : 'ingreso';
         let montoAjuste = Math.abs(diferencia);
         
-        // Construcción del texto de fechas
         let fechaDesdeTexto = ultimaFechaMovGlobal ? ultimaFechaMovGlobal.toLocaleDateString() : 'Ayer';
         let descripcionAjuste = diferencia < 0 ? `☕ Gastos invisibles (Del ${fechaDesdeTexto} al Hoy)` : `✨ Ingreso no mapeado (Del ${fechaDesdeTexto} al Hoy)`;
 
@@ -325,7 +361,6 @@ if(btnActualizarSaldo) {
     });
 }
 
-// Función global para eliminar (sirve para fijos, movimientos y categorías)
 window.eliminarRegistro = async function(coleccion, id) {
     if(confirm("¿Borrar este registro? Esto recalculará todo.")) {
         await deleteDoc(doc(db, coleccion, id));
