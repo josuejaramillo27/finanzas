@@ -9,9 +9,9 @@ html {
     scroll-behavior: smooth;
 }
 
-/* 1. FONDO PRINCIPAL NEGRO MATE */
+/* 1. FONDO PRINCIPAL NEGRO PURO */
 body {
-    background-color: #121212;
+    background-color: #000000; /* Negro completamente oscuro */
     color: #F4F4F5;
     padding-bottom: 50px;
 }
@@ -30,7 +30,7 @@ main {
 
 /* 2. SECCIONES: GRIS CARBÓN ELEVADO */
 .card, .mac-glass {
-    background: #1E1E1E;
+    background: #1E1E1E; /* Para que contraste con el fondo súper negro */
     border: 1px solid #27272A;
     border-radius: 16px;
     padding: 25px;
@@ -49,10 +49,10 @@ h2 {
 }
 
 /* 3. COLORES DE ACENTO UNIFICADOS */
-.color-teal { color: #10B981; } /* Verde Esmeralda para títulos positivos */
-.color-morado { color: #F4F4F5; } /* Unificado a Blanco Humo */
-.color-amarillo { color: #F4F4F5; } /* Unificado a Blanco Humo */
-.color-rojo { color: #EF4444; } /* Rojo Carmesí para alertas/gastos */
+.color-teal { color: #10B981; } 
+.color-morado { color: #F4F4F5; } 
+.color-amarillo { color: #F4F4F5; } 
+.color-rojo { color: #EF4444; } 
 
 .monto-destacado {
     font-size: 2rem;
@@ -76,7 +76,7 @@ hr {
 /* 4. BOTONES: DISEÑO ELEGANTE Y UNIFICADO */
 .btn-pildora {
     padding: 12px 15px;
-    border-radius: 8px; /* Bordes menos redondeados para un look más serio */
+    border-radius: 8px;
     font-weight: 600;
     font-size: 0.95rem;
     display: flex;
@@ -93,7 +93,6 @@ hr {
     transform: translateY(-2px);
 }
 
-/* Todos los botones principales ahora son Verde Esmeralda */
 .btn-teal, .btn-amarillo, .btn-morado { 
     background-color: #10B981; 
     color: #121212; 
@@ -102,7 +101,6 @@ hr {
     background-color: #059669;
 }
 
-/* Botones destructivos / gastos mantienen el rojo */
 .btn-rojo { 
     background-color: #EF4444; 
     color: #FFFFFF; 
@@ -121,7 +119,7 @@ input, select {
     width: 100%;
     padding: 14px;
     margin-bottom: 15px;
-    background: #121212; /* Fondo súper oscuro para contrastar con la sección */
+    background: #121212; 
     border: 1px solid #3F3F46;
     color: #F4F4F5;
     border-radius: 8px;
@@ -131,7 +129,7 @@ input, select {
 }
 
 input:focus, select:focus {
-    border: 1px solid #10B981; /* Borde verde al escribir */
+    border: 1px solid #10B981; 
 }
 
 select option {
@@ -150,7 +148,7 @@ select option {
 
 #lista-fijos { list-style: none; }
 #lista-fijos li {
-    background: #121212; /* Contraste interno */
+    background: #121212;
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 10px;
@@ -166,7 +164,7 @@ select option {
     gap: 5px;
 }
 
-/* --- ADAPTACIÓN PARA PC Y CELULAR (CSS GRID) --- */
+/* --- ADAPTACIÓN PARA PC Y CELULAR --- */
 .dashboard-container {
     display: grid;
     grid-template-columns: 1fr; 
@@ -187,7 +185,7 @@ select option {
 
 .resumen-item p {
     font-size: 0.8rem;
-    color: #A1A1AA; /* Letras secundarias */
+    color: #A1A1AA;
     margin-bottom: 5px;
 }
 
@@ -197,7 +195,7 @@ select option {
 
 @media (min-width: 768px) {
     main {
-        max-width: 900px; 
+        max-width: 1100px; /* Mucho más amplio en PC para aprovechar horizontal */
     }
     
     .dashboard-container {
