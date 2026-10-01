@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#15151e">
+    <meta name="theme-color" content="#000000">
 </head>
 <body>
     <header>
@@ -27,9 +27,14 @@
                     <p style="font-size: 0.85rem; color: #29c87c; margin-bottom: 5px;"><i class="fa-solid fa-unlock-keyhole"></i> Libre para Gastar Hoy</p>
                     <h3 id="dinero-libre" style="font-size: 1.8rem; color: #29c87c;">S/ 0.00</h3>
                     
-                    <!-- NUEVO: RADAR DE PRÓXIMO GASTO FIJO -->
+                    <!-- NUEVA BARRA: VERDE (100%) CON ROJO SUPERPUESTO (Fijos pendientes) -->
+                    <div style="width: 100%; height: 12px; background-color: #10B981; border-radius: 6px; margin-top: 10px; position: relative; overflow: hidden;">
+                        <div id="barra-roja-fijos" style="height: 100%; background-color: #EF4444; width: 0%; position: absolute; left: 0; top: 0; transition: width 0.5s;"></div>
+                    </div>
+                    <p style="font-size: 0.7rem; color: #aaa; margin-top: 5px;">Verde: 100% de tu cuenta | Rojo: Fijos pendientes</p>
+                    
+                    <!-- RADAR DE PRÓXIMO GASTO FIJO -->
                     <div id="alerta-proximo-gasto" style="margin-top: 10px; font-size: 0.8rem; color: #ffb800; background: rgba(255, 184, 0, 0.1); padding: 8px; border-radius: 8px; display: none;">
-                        <!-- Se llena con JS -->
                     </div>
                 </div>
             </div>
@@ -44,7 +49,7 @@
             <p style="font-size: 0.75rem; margin-top: 8px; color: #aaa;">Si hay diferencia, la app registrará el gasto/ingreso invisible con sus fechas.</p>
         </section>
 
-        <!-- RESUMEN DEL MES ACTUAL (CON DESGLOSE DE CLIENTES) -->
+        <!-- RESUMEN DEL MES ACTUAL -->
         <section class="card mac-glass full-width" style="border-top: 4px solid #0088ff;">
             <h2 class="color-teal" style="justify-content: center;"><i class="fa-solid fa-calendar-day"></i> Resumen de <span id="mes-actual-nombre" style="margin-left: 5px;">Mes</span></h2>
             
@@ -52,7 +57,6 @@
                 <div class="resumen-item" style="display: flex; flex-direction: column;">
                     <p>Ingresos del Mes</p>
                     <h3 id="resumen-ingresos" class="color-teal">S/ 0.00</h3>
-                    <!-- Aquí aparecerá cuánto ganaste con cada cliente -->
                     <div id="desglose-clientes" style="font-size: 0.75rem; color: #aaa; margin-top: 8px; text-align: left; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 5px;"></div>
                 </div>
                 <div class="resumen-item">
@@ -66,7 +70,7 @@
             </div>
 
             <hr>
-            <p style="text-align: center; color: #aaa; font-size: 0.9rem;">Balance Neto del Mes (Ingresos - Gastos - Fijos)</p>
+            <p style="text-align: center; color: #aaa; font-size: 0.9rem;">Balance Neto del Mes</p>
             <h2 id="balance-neto" style="text-align: center; font-size: 2.5rem; color: #ffffff; margin-top: 10px;">S/ 0.00</h2>
         </section>
 
@@ -80,13 +84,10 @@
                 </select>
                 
                 <input type="number" id="monto" placeholder="Monto en S/" step="0.01" required>
-                
-                <!-- ESTO CAMBIA DINÁMICAMENTE -->
                 <input type="text" id="descripcion-gasto" placeholder="¿En qué fue? (Ej. Zapatillas...)" required>
                 <select id="categoria-ingreso" style="display: none;">
                     <option value="">Selecciona cliente/categoría...</option>
                 </select>
-
                 <input type="date" id="fecha-movimiento" required>
                 <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%;"><i class="fa-solid fa-check"></i> Registrar</button>
             </form>
@@ -107,12 +108,11 @@
                 <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
             </section>
 
-            <!-- NUEVO: SECCIÓN DE CATEGORÍAS DE INGRESO -->
             <section class="card mac-glass" style="margin-bottom: 0;">
                 <h2 class="color-teal"><i class="fa-solid fa-address-book"></i> Tus Clientes/Fuentes</h2>
                 <form id="form-categoria" style="margin-bottom: 15px;">
                     <div style="display: flex; gap: 10px;">
-                        <input type="text" id="nombre-categoria" placeholder="Ej. Hedam, Juan..." required style="margin-bottom: 0;">
+                        <input type="text" id="nombre-categoria" placeholder="Ej. Hedam..." required style="margin-bottom: 0;">
                         <button type="submit" class="btn-pildora btn-teal"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </form>
