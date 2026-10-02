@@ -28,6 +28,8 @@ let gastosMesGlobal = 0;
 let saldoEsperadoGlobal = 0;   
 let ultimaFechaMovGlobal = null; 
 let desgloseIngresosGlobal = {}; 
+// Objeto para guardar temporalmente los fijos para editarlos
+let listaFijosGlobal = {};
 
 // 1. ESCUCHAR CATEGORÍAS DE CLIENTES
 const qCategorias = query(collection(db, "categorias_ingreso"), orderBy("nombre", "asc"));
@@ -60,7 +62,7 @@ document.getElementById('form-categoria').addEventListener('submit', async (e) =
     } catch (error) { console.error(error); }
 });
 
-// 2. ESCUCHAR GASTOS FIJOS (BOTÓN PAGADO Y BARRA VERDE/ROJA)
+// 2. ESCUCHAR GASTOS FIJOS (BOTÓN PAGADO, BARRA Y AHORA EDICIÓN)
 const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
@@ -77,8 +79,14 @@ onSnapshot(qFijos, (querySnapshot) => {
     const listaFijos = document.getElementById('lista-fijos');
     if(listaFijos) listaFijos.innerHTML = '';
     
+    // Limpiamos la lista temporal global de fijos
+    listaFijosGlobal = {};
+    
     querySnapshot.forEach((documento) => {
         const data = documento.data();
+        // Guardamos los datos en la variable global usando el ID como llave
+        listaFijosGlobal[documento.id] = data;
+        
         sumaFijos += data.monto;
         
         let diasFaltantes = 0;
@@ -130,15 +138,20 @@ onSnapshot(qFijos, (querySnapshot) => {
         }
         
         listaFijos.innerHTML += `
-            <li style="background: #1E1E1E; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #27272A;">
+            <li style="background: #111111; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #222222;">
                 <div>
                     <strong style="color: #F4F4F5;">${data.nombre}</strong> ${estadoGasto} <br>
                     <span style="font-size: 0.8rem; color: #A1A1AA;">Día de pago: ${data.dia}</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <strong style="color: #F4F4F5;">S/ ${data.monto.toFixed(2)}</strong>
+                    <strong style="color: #F4F4F5; margin-right: 10px;">S/ ${data.monto.toFixed(2)}</strong>
+                    
                     ${!yaPagado ? `<button onclick="marcarPagado('${documento.id}', '${idMesCobro}')" style="background: none; border: none; color: #10B981; cursor: pointer; font-size: 1.2rem;" title="Marcar como pagado">✅</button>` : `<button onclick="deshacerPago('${documento.id}')" style="background: none; border: none; color: #A1A1AA; cursor: pointer;" title="Deshacer pago"><i class="fa-solid fa-rotate-left"></i></button>`}
-                    <button onclick="eliminarRegistro('gastos_fijos', '${documento.id}')" style="background: none; border: none; color: #EF4444; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+                    
+                    <!-- NUEVO BOTÓN DE EDITAR -->
+                    <button onclick="abrirModalEditar('${documento.id}')" style="background: none; border: none; color: #ffb800; cursor: pointer; font-size: 1rem;" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                    
+                    <button onclick="eliminarRegistro('gastos_fijos', '${documento.id}')" style="background: none; border: none; color: #EF4444; cursor: pointer; font-size: 1rem;" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </li>
         `;
@@ -159,7 +172,7 @@ onSnapshot(qFijos, (querySnapshot) => {
     actualizarPanelPrincipal();
 });
 
-// Guardar y Actualizar Gasto Fijo
+// Guardar Nuevo Gasto Fijo
 document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('nombre-fijo').value;
@@ -170,6 +183,41 @@ document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) 
         document.getElementById('form-gasto-fijo').reset();
     } catch (error) { console.error(error); }
 });
+
+// ---- LÓGICA DE EDICIÓN DE GASTOS FIJOS ----
+window.abrirModalEditar = function(id) {
+    const data = listaFijosGlobal[id];
+    if(data) {
+        document.getElementById('edit-id-fijo').value = id;
+        document.getElementById('edit-nombre-fijo').value = data.nombre;
+        document.getElementById('edit-monto-fijo').value = data.monto;
+        document.getElementById('edit-dia-fijo').value = data.dia;
+        document.getElementById('modal-editar-fijo').style.display = 'flex';
+    }
+};
+
+window.cerrarModalEditar = function() {
+    document.getElementById('modal-editar-fijo').style.display = 'none';
+};
+
+// Guardar Cambios Editados
+document.getElementById('form-editar-fijo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-id-fijo').value;
+    const nombre = document.getElementById('edit-nombre-fijo').value;
+    const monto = parseFloat(document.getElementById('edit-monto-fijo').value);
+    const dia = parseInt(document.getElementById('edit-dia-fijo').value);
+    
+    try {
+        await updateDoc(doc(db, "gastos_fijos", id), {
+            nombre: nombre,
+            monto: monto,
+            dia: dia
+        });
+        cerrarModalEditar();
+    } catch (error) { console.error("Error actualizando: ", error); }
+});
+// ---------------------------------------------
 
 window.marcarPagado = async function(id, idMesCobro) {
     await updateDoc(doc(db, "gastos_fijos", id), { mesPagado: idMesCobro });
