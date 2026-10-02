@@ -39,7 +39,7 @@
                 </div>
             </div>
 
-            <hr>
+            <hr style="border-top: 1px solid #333;">
             
             <p style="font-size: 0.9rem; margin-bottom: 10px;">¿Cuánto dinero tienes en tu Yape/Banco ahora mismo?</p>
             <div style="display: flex; gap: 10px; max-width: 400px; margin: 0 auto;">
@@ -69,13 +69,13 @@
                 </div>
             </div>
 
-            <hr>
+            <hr style="border-top: 1px solid #333;">
             <p style="text-align: center; color: #aaa; font-size: 0.9rem;">Balance Neto del Mes</p>
             <h2 id="balance-neto" style="text-align: center; font-size: 2.5rem; color: #ffffff; margin-top: 10px;">S/ 0.00</h2>
         </section>
 
-        <!-- COLUMNA IZQUIERDA: REGISTRAR MOVIMIENTO -->
-        <section class="card mac-glass">
+        <!-- COLUMNA IZQUIERDA: REGISTRAR MOVIMIENTO (CON ESPACIO DEBAJO) -->
+        <section class="card mac-glass" style="margin-bottom: 50px;"> <!-- GRAN ESPACIO AÑADIDO -->
             <h2 class="color-amarillo"><i class="fa-solid fa-pen-nib"></i> Registrar Movimiento</h2>
             <form id="form-movimiento">
                 <select id="tipo-movimiento" required>
@@ -127,6 +127,24 @@
         </section>
 
     </main>
+
+    <!-- VENTANA MODAL PARA EDITAR GASTO FIJO (OCULTA POR DEFECTO) -->
+    <div id="modal-editar-fijo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="card mac-glass" style="width: 90%; max-width: 400px; margin: 0; position: relative;">
+            <button onclick="cerrarModalEditar()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <h2 class="color-amarillo" style="margin-bottom: 20px;"><i class="fa-solid fa-pen"></i> Editar Gasto Fijo</h2>
+            <form id="form-editar-fijo">
+                <input type="hidden" id="edit-id-fijo">
+                <input type="text" id="edit-nombre-fijo" placeholder="Ej. Internet" required>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="edit-monto-fijo" placeholder="S/ Monto" step="0.01" required>
+                    <input type="number" id="edit-dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
+                </div>
+                <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
     <script type="module" src="app.js"></script>
 </body>
 </html>
