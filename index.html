@@ -74,8 +74,8 @@
             <h2 id="balance-neto" style="text-align: center; font-size: 2.5rem; color: #ffffff; margin-top: 10px;">S/ 0.00</h2>
         </section>
 
-        <!-- COLUMNA IZQUIERDA: REGISTRAR MOVIMIENTO (CON ESPACIO DEBAJO) -->
-        <section class="card mac-glass" style="margin-bottom: 50px;"> <!-- GRAN ESPACIO AÑADIDO -->
+        <!-- COLUMNA IZQUIERDA: REGISTRAR MOVIMIENTO -->
+        <section class="card mac-glass" style="margin-bottom: 50px;"> 
             <h2 class="color-amarillo"><i class="fa-solid fa-pen-nib"></i> Registrar Movimiento</h2>
             <form id="form-movimiento">
                 <select id="tipo-movimiento" required>
@@ -96,13 +96,17 @@
         <!-- COLUMNA DERECHA: GASTOS FIJOS Y CATEGORÍAS -->
         <div style="display: flex; flex-direction: column; gap: 20px;">
             <section class="card mac-glass" style="margin-bottom: 0;">
-                <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Gastos Fijos (Mes a Mes)</h2>
+                <h2 class="color-rojo"><i class="fa-solid fa-calendar-days"></i> Gastos Fijos</h2>
                 <form id="form-gasto-fijo" style="margin-bottom: 20px;">
                     <input type="text" id="nombre-fijo" placeholder="Ej. Internet" required>
                     <div style="display: flex; gap: 10px;">
                         <input type="number" id="monto-fijo" placeholder="S/ Monto" step="0.01" required>
-                        <input type="number" id="dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
+                        <input type="date" id="fecha-fijo" required title="Fecha del próximo pago">
                     </div>
+                    <select id="frecuencia-fijo" required style="margin-bottom: 10px;">
+                        <option value="mensual">Mensual (ej. todos los 10)</option>
+                        <option value="30dias">Cada 30 días exactos</option>
+                    </select>
                     <button type="submit" class="btn-pildora btn-rojo" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-plus"></i> Agregar Fijo</button>
                 </form>
                 <ul id="lista-fijos" style="list-style: none; padding: 0;"></ul>
@@ -128,7 +132,7 @@
 
     </main>
 
-    <!-- VENTANA MODAL PARA EDITAR GASTO FIJO (OCULTA POR DEFECTO) -->
+    <!-- VENTANA MODAL PARA EDITAR GASTO FIJO -->
     <div id="modal-editar-fijo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
         <div class="card mac-glass" style="width: 90%; max-width: 400px; margin: 0; position: relative;">
             <button onclick="cerrarModalEditar()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;">&times;</button>
@@ -138,8 +142,12 @@
                 <input type="text" id="edit-nombre-fijo" placeholder="Ej. Internet" required>
                 <div style="display: flex; gap: 10px;">
                     <input type="number" id="edit-monto-fijo" placeholder="S/ Monto" step="0.01" required>
-                    <input type="number" id="edit-dia-fijo" placeholder="Día (1-31)" min="1" max="31" required>
+                    <input type="date" id="edit-fecha-fijo" required title="Fecha del próximo pago">
                 </div>
+                <select id="edit-frecuencia-fijo" required style="margin-bottom: 10px;">
+                    <option value="mensual">Mensual (ej. todos los 10)</option>
+                    <option value="30dias">Cada 30 días exactos</option>
+                </select>
                 <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
             </form>
         </div>
