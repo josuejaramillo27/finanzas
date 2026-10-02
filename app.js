@@ -20,6 +20,12 @@ const anioActual = new Date().getFullYear();
 
 document.getElementById('mes-actual-nombre').innerText = mesesNombres[mesActual];
 
+// Utilidad para extraer fechas exactas en tu zona horaria local sin error de desfase
+function getLocalISOString() {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return new Date(Date.now() - tzoffset).toISOString().split('T')[0];
+}
+
 // Variables Globales
 let totalFijosGlobal = 0;
 let fijosPendientesGlobal = 0; 
@@ -28,7 +34,6 @@ let gastosMesGlobal = 0;
 let saldoEsperadoGlobal = 0;   
 let ultimaFechaMovGlobal = null; 
 let desgloseIngresosGlobal = {}; 
-// Objeto para guardar temporalmente los fijos para editarlos
 let listaFijosGlobal = {};
 
 // 1. ESCUCHAR CATEGORÍAS DE CLIENTES
@@ -42,7 +47,6 @@ onSnapshot(qCategorias, (querySnapshot) => {
     
     querySnapshot.forEach((documento) => {
         const data = documento.data();
-        
         if(selectCat) selectCat.innerHTML += `<option value="${data.nombre}">${data.nombre}</option>`;
         if(listaCat) listaCat.innerHTML += `
             <li style="background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem;">
@@ -62,96 +66,113 @@ document.getElementById('form-categoria').addEventListener('submit', async (e) =
     } catch (error) { console.error(error); }
 });
 
-// 2. ESCUCHAR GASTOS FIJOS (BOTÓN PAGADO, BARRA Y AHORA EDICIÓN)
-const qFijos = query(collection(db, "gastos_fijos"), orderBy("dia", "asc"));
+// 2. ESCUCHAR GASTOS FIJOS (BOTÓN PAGADO, FECHAS EXACTAS Y BARRA)
+const qFijos = query(collection(db, "gastos_fijos"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
     let sumaPendientes = 0;
     let proximoGasto = null;
     let minDiasFaltantes = 999;
     
-    const fechaHoy = new Date();
-    const diaActual = fechaHoy.getDate(); 
-    const mesActualNum = fechaHoy.getMonth();
-    const anioActualNum = fechaHoy.getFullYear();
-    const diasEnMesActual = new Date(anioActualNum, mesActualNum + 1, 0).getDate();
+    const hoyMediodia = new Date();
+    hoyMediodia.setHours(12, 0, 0, 0);
+    const hoyIdentificador = hoyMediodia.getMonth() + '-' + hoyMediodia.getFullYear();
     
-    const listaFijos = document.getElementById('lista-fijos');
-    if(listaFijos) listaFijos.innerHTML = '';
-    
-    // Limpiamos la lista temporal global de fijos
+    // Obtenemos los datos y los ordenamos por fecha manualmente
+    let fijosArray = [];
     listaFijosGlobal = {};
     
     querySnapshot.forEach((documento) => {
         const data = documento.data();
-        // Guardamos los datos en la variable global usando el ID como llave
-        listaFijosGlobal[documento.id] = data;
+        let fechaProximo;
+        
+        // Soporte para datos nuevos vs datos antiguos
+        if (data.fechaProximo) {
+            fechaProximo = data.fechaProximo.toDate();
+        } else if (data.dia) {
+            let mesTemp = hoyMediodia.getMonth();
+            let anioTemp = hoyMediodia.getFullYear();
+            if (data.dia < hoyMediodia.getDate()) {
+                mesTemp++;
+                if (mesTemp > 11) { mesTemp = 0; anioTemp++; }
+            }
+            fechaProximo = new Date(anioTemp, mesTemp, data.dia);
+        } else {
+            fechaProximo = new Date();
+        }
+        
+        fechaProximo.setHours(12, 0, 0, 0);
+        fijosArray.push({ id: documento.id, data, fechaProximo });
+        listaFijosGlobal[documento.id] = { ...data, id: documento.id, fechaProximoCalc: fechaProximo };
+    });
+    
+    // Ordenar de pago más cercano a más lejano
+    fijosArray.sort((a, b) => a.fechaProximo - b.fechaProximo);
+    
+    const listaFijos = document.getElementById('lista-fijos');
+    if(listaFijos) listaFijos.innerHTML = '';
+    
+    fijosArray.forEach((item) => {
+        const data = item.data;
+        const fechaProximo = item.fechaProximo;
         
         sumaFijos += data.monto;
         
-        let diasFaltantes = 0;
-        let bloquearDinero = false;
-
-        if (data.dia >= diaActual) {
-            diasFaltantes = data.dia - diaActual;
-        } else {
-            diasFaltantes = (diasEnMesActual - diaActual) + data.dia;
-        }
-
-        // Determinar a qué mes/año pertenece el cobro
-        let mesFijo = mesActualNum;
-        let anioFijo = anioActualNum;
-        if (data.dia < diaActual && diasFaltantes <= 5) {
-            mesFijo = mesActualNum + 1;
-            if (mesFijo > 11) { mesFijo = 0; anioFijo++; }
-        }
-        let idMesCobro = `${mesFijo}-${anioFijo}`;
+        const diasFaltantes = Math.round((fechaProximo - hoyMediodia) / (1000 * 60 * 60 * 24));
+        const esMismoMes = fechaProximo.getMonth() === hoyMediodia.getMonth() && fechaProximo.getFullYear() === hoyMediodia.getFullYear();
+        const fuePagadoReciente = data.mesAccionPagado === hoyIdentificador;
         
-        // Comprobar si tú mismo lo marcaste manualmente como ✅ "Pagado"
-        let yaPagado = data.mesPagado === idMesCobro;
-
         let estadoGasto = '';
-
-        if (yaPagado) {
-            bloquearDinero = false;
-            estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Pagado)</span>';
+        let bloquearDinero = false;
+        
+        if (diasFaltantes < 0) {
+            bloquearDinero = true;
+            estadoGasto = '<span style="color: #EF4444; font-size: 0.75rem; margin-left: 5px;">(Atrasado)</span>';
+        } else if (diasFaltantes === 0) {
+            bloquearDinero = true;
+            estadoGasto = '<span style="color: #ffb800; font-size: 0.75rem; margin-left: 5px;">(Pagar hoy)</span>';
+        } else if (esMismoMes) {
+            bloquearDinero = true;
+            estadoGasto = '<span style="color: #F4F4F5; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
+        } else if (diasFaltantes <= 5) {
+            bloquearDinero = true;
+            estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Próximo mes: ¡Se acerca!)</span>';
         } else {
-            if (data.dia >= diaActual) {
-                bloquearDinero = true;
-                estadoGasto = '<span style="color: #F4F4F5; font-size: 0.75rem; margin-left: 5px;">(Falta pagar)</span>';
-            } else if (diasFaltantes <= 5) { 
-                bloquearDinero = true;
-                estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Próximo mes: ¡Se acerca!)</span>';
-            } else {
-                bloquearDinero = false;
-                estadoGasto = '<span style="color: #3F3F46; font-size: 0.75rem; margin-left: 5px;">(Ya pasó)</span>';
-            }
+            bloquearDinero = false;
+            estadoGasto = '<span style="color: #3F3F46; font-size: 0.75rem; margin-left: 5px;">(Mes cubierto)</span>';
+        }
+
+        if (fuePagadoReciente && diasFaltantes > 5) {
+            estadoGasto = '<span style="color: #10B981; font-size: 0.75rem; margin-left: 5px;">(Pagado)</span>';
         }
 
         if (bloquearDinero) {
             sumaPendientes += data.monto;
+            if (diasFaltantes >= 0 && diasFaltantes < minDiasFaltantes) {
+                minDiasFaltantes = diasFaltantes;
+                proximoGasto = data;
+            }
         }
         
-        if (!yaPagado && diasFaltantes < minDiasFaltantes) {
-            minDiasFaltantes = diasFaltantes;
-            proximoGasto = data;
-        }
+        const opcionesFecha = { day: 'numeric', month: 'long' };
+        const textoFecha = fechaProximo.toLocaleDateString('es-ES', opcionesFecha);
         
         listaFijos.innerHTML += `
             <li style="background: #111111; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #222222;">
                 <div>
                     <strong style="color: #F4F4F5;">${data.nombre}</strong> ${estadoGasto} <br>
-                    <span style="font-size: 0.8rem; color: #A1A1AA;">Día de pago: ${data.dia}</span>
+                    <span style="font-size: 0.8rem; color: #A1A1AA;">Próximo pago: <span style="color:#fff;">${textoFecha}</span></span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <strong style="color: #F4F4F5; margin-right: 10px;">S/ ${data.monto.toFixed(2)}</strong>
                     
-                    ${!yaPagado ? `<button onclick="marcarPagado('${documento.id}', '${idMesCobro}')" style="background: none; border: none; color: #10B981; cursor: pointer; font-size: 1.2rem;" title="Marcar como pagado">✅</button>` : `<button onclick="deshacerPago('${documento.id}')" style="background: none; border: none; color: #A1A1AA; cursor: pointer;" title="Deshacer pago"><i class="fa-solid fa-rotate-left"></i></button>`}
+                    ${fuePagadoReciente && diasFaltantes > 5 ? 
+                        `<button onclick="deshacerPago('${item.id}')" style="background: none; border: none; color: #A1A1AA; cursor: pointer;" title="Deshacer pago"><i class="fa-solid fa-rotate-left"></i></button>` : 
+                        `<button onclick="marcarPagado('${item.id}')" style="background: none; border: none; color: #10B981; cursor: pointer; font-size: 1.2rem;" title="Marcar como pagado">✅</button>`
+                    }
                     
-                    <!-- NUEVO BOTÓN DE EDITAR -->
-                    <button onclick="abrirModalEditar('${documento.id}')" style="background: none; border: none; color: #ffb800; cursor: pointer; font-size: 1rem;" title="Editar"><i class="fa-solid fa-pen"></i></button>
-                    
-                    <button onclick="eliminarRegistro('gastos_fijos', '${documento.id}')" style="background: none; border: none; color: #EF4444; cursor: pointer; font-size: 1rem;" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                    <button onclick="abrirModalEditar('${item.id}')" style="background: none; border: none; color: #ffb800; cursor: pointer; font-size: 1rem;" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="eliminarRegistro('gastos_fijos', '${item.id}')" style="background: none; border: none; color: #EF4444; cursor: pointer; font-size: 1rem;" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </li>
         `;
@@ -172,15 +193,27 @@ onSnapshot(qFijos, (querySnapshot) => {
     actualizarPanelPrincipal();
 });
 
+// Selector Local Time por Defecto
+const campoFechaFijo = document.getElementById('fecha-fijo');
+if(campoFechaFijo) campoFechaFijo.value = getLocalISOString();
+
 // Guardar Nuevo Gasto Fijo
 document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('nombre-fijo').value;
     const monto = parseFloat(document.getElementById('monto-fijo').value);
-    const dia = parseInt(document.getElementById('dia-fijo').value);
+    const frecuencia = document.getElementById('frecuencia-fijo').value;
+    
+    const fechaElegida = document.getElementById('fecha-fijo').value;
+    const [year, month, day] = fechaElegida.split('-');
+    const fechaGuardar = new Date(year, month - 1, day, 12, 0, 0);
+
     try {
-        await addDoc(collection(db, "gastos_fijos"), { nombre, monto, dia, mesPagado: null });
+        await addDoc(collection(db, "gastos_fijos"), { 
+            nombre, monto, fechaProximo: fechaGuardar, frecuencia, mesAccionPagado: null 
+        });
         document.getElementById('form-gasto-fijo').reset();
+        document.getElementById('fecha-fijo').value = getLocalISOString();
     } catch (error) { console.error(error); }
 });
 
@@ -191,7 +224,13 @@ window.abrirModalEditar = function(id) {
         document.getElementById('edit-id-fijo').value = id;
         document.getElementById('edit-nombre-fijo').value = data.nombre;
         document.getElementById('edit-monto-fijo').value = data.monto;
-        document.getElementById('edit-dia-fijo').value = data.dia;
+        document.getElementById('edit-frecuencia-fijo').value = data.frecuencia || 'mensual';
+        
+        // Recuperar la fecha y extraer su texto para el input type="date"
+        const tzoffset = data.fechaProximoCalc.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(data.fechaProximoCalc.getTime() - tzoffset).toISOString().split('T')[0];
+        document.getElementById('edit-fecha-fijo').value = localISOTime;
+
         document.getElementById('modal-editar-fijo').style.display = 'flex';
     }
 };
@@ -200,31 +239,59 @@ window.cerrarModalEditar = function() {
     document.getElementById('modal-editar-fijo').style.display = 'none';
 };
 
-// Guardar Cambios Editados
 document.getElementById('form-editar-fijo').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-id-fijo').value;
     const nombre = document.getElementById('edit-nombre-fijo').value;
     const monto = parseFloat(document.getElementById('edit-monto-fijo').value);
-    const dia = parseInt(document.getElementById('edit-dia-fijo').value);
+    const frecuencia = document.getElementById('edit-frecuencia-fijo').value;
+    
+    const fechaElegida = document.getElementById('edit-fecha-fijo').value;
+    const [year, month, day] = fechaElegida.split('-');
+    const fechaGuardar = new Date(year, month - 1, day, 12, 0, 0);
     
     try {
         await updateDoc(doc(db, "gastos_fijos", id), {
             nombre: nombre,
             monto: monto,
-            dia: dia
+            fechaProximo: fechaGuardar,
+            frecuencia: frecuencia
         });
         cerrarModalEditar();
     } catch (error) { console.error("Error actualizando: ", error); }
 });
-// ---------------------------------------------
 
-window.marcarPagado = async function(id, idMesCobro) {
-    await updateDoc(doc(db, "gastos_fijos", id), { mesPagado: idMesCobro });
+// Avanzar de Ciclo de Pago (✅)
+window.marcarPagado = async function(id) {
+    const data = listaFijosGlobal[id];
+    if(!data) return;
+
+    let nuevaFecha = new Date(data.fechaProximoCalc);
+    if (data.frecuencia === '30dias') {
+         nuevaFecha.setDate(nuevaFecha.getDate() + 30);
+    } else {
+         nuevaFecha.setMonth(nuevaFecha.getMonth() + 1);
+    }
+
+    const hoyStr = new Date().getMonth() + '-' + new Date().getFullYear();
+
+    await updateDoc(doc(db, "gastos_fijos", id), { 
+        fechaProximo: nuevaFecha, 
+        ultimaFechaCobro: data.fechaProximoCalc,
+        mesAccionPagado: hoyStr 
+    });
 };
 
+// Retroceder en caso de equivocación
 window.deshacerPago = async function(id) {
-    await updateDoc(doc(db, "gastos_fijos", id), { mesPagado: null });
+    const data = listaFijosGlobal[id];
+    if(!data || !data.ultimaFechaCobro) return;
+    
+    await updateDoc(doc(db, "gastos_fijos", id), { 
+        fechaProximo: data.ultimaFechaCobro,
+        ultimaFechaCobro: null,
+        mesAccionPagado: null 
+    });
 };
 
 // 3. ESCUCHAR MOVIMIENTOS
@@ -305,7 +372,7 @@ document.getElementById('tipo-movimiento').addEventListener('change', (e) => {
 });
 
 const campoFecha = document.getElementById('fecha-movimiento');
-if(campoFecha) campoFecha.valueAsDate = new Date();
+if(campoFecha) campoFecha.value = getLocalISOString();
 
 document.getElementById('form-movimiento').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -314,14 +381,17 @@ document.getElementById('form-movimiento').addEventListener('submit', async (e) 
     
     const descripcion = tipo === 'ingreso' ? document.getElementById('categoria-ingreso').value : document.getElementById('descripcion-gasto').value; 
     const fechaElegida = document.getElementById('fecha-movimiento').value;
-    const fechaGuardar = new Date(fechaElegida + 'T12:00:00');
+    
+    // Extracción limpia para Evitar Bugs de Zona Horaria
+    const [year, month, day] = fechaElegida.split('-');
+    const fechaGuardar = new Date(year, month - 1, day, 12, 0, 0);
 
     try {
         await addDoc(collection(db, "movimientos"), {
             tipo, monto, descripcion, fecha: fechaGuardar
         });
         document.getElementById('form-movimiento').reset();
-        document.getElementById('fecha-movimiento').valueAsDate = new Date();
+        document.getElementById('fecha-movimiento').value = getLocalISOString();
         document.getElementById('tipo-movimiento').dispatchEvent(new Event('change'));
     } catch (error) { console.error("Error: ", error); }
 });
