@@ -20,7 +20,6 @@ const anioActual = new Date().getFullYear();
 
 document.getElementById('mes-actual-nombre').innerText = mesesNombres[mesActual];
 
-// Utilidad para extraer fechas exactas en tu zona horaria local sin error de desfase
 function getLocalISOString() {
     const tzoffset = (new Date()).getTimezoneOffset() * 60000;
     return new Date(Date.now() - tzoffset).toISOString().split('T')[0];
@@ -35,6 +34,139 @@ let saldoEsperadoGlobal = 0;
 let ultimaFechaMovGlobal = null; 
 let desgloseIngresosGlobal = {}; 
 let listaFijosGlobal = {};
+
+// --- LÓGICA DE REPORTES (NUEVA FUNCIÓN TIPO LINGOT) ---
+let historialMovimientosParaReporte = [];
+
+window.abrirModalReportes = function() {
+    document.getElementById('modal-reportes').style.display = 'flex';
+    procesarReportes();
+};
+
+window.cerrarModalReportes = function() {
+    document.getElementById('modal-reportes').style.display = 'none';
+};
+
+document.getElementById('selector-anio-reporte')?.addEventListener('change', procesarReportes);
+
+function procesarReportes() {
+    const dataAnual = {};
+    const aniosDisponibles = new Set();
+    
+    // Recopilar datos
+    historialMovimientosParaReporte.forEach(mov => {
+        const fecha = mov.fecha.toDate();
+        const anio = fecha.getFullYear();
+        const mes = fecha.getMonth();
+        aniosDisponibles.add(anio);
+        
+        if (!dataAnual[anio]) {
+            dataAnual[anio] = { meses: {}, totalIngresos: 0, totalGastos: 0 };
+        }
+        if (!dataAnual[anio].meses[mes]) {
+            dataAnual[anio].meses[mes] = { ingresos: 0, gastos: 0, desgloseIngresos: {}, mayoresGastos: [] };
+        }
+        
+        if (mov.tipo === 'ingreso') {
+            dataAnual[anio].totalIngresos += mov.monto;
+            dataAnual[anio].meses[mes].ingresos += mov.monto;
+            dataAnual[anio].meses[mes].desgloseIngresos[mov.descripcion] = (dataAnual[anio].meses[mes].desgloseIngresos[mov.descripcion] || 0) + mov.monto;
+        } else if (mov.tipo === 'gasto') {
+            dataAnual[anio].totalGastos += mov.monto;
+            dataAnual[anio].meses[mes].gastos += mov.monto;
+            if (!mov.descripcion.includes('(Auto)')) {
+                dataAnual[anio].meses[mes].mayoresGastos.push({ desc: mov.descripcion, monto: mov.monto });
+            }
+        }
+    });
+
+    // Llenar selector de año si está vacío
+    const selectorAnio = document.getElementById('selector-anio-reporte');
+    if (selectorAnio.options.length === 0 && aniosDisponibles.size > 0) {
+        Array.from(aniosDisponibles).sort((a,b)=>b-a).forEach(a => {
+            selectorAnio.innerHTML += `<option value="${a}">${a}</option>`;
+        });
+    }
+
+    const anioElegido = parseInt(selectorAnio.value) || anioActual;
+    const datosDelAnio = dataAnual[anioElegido];
+
+    const boxAnual = document.getElementById('contenido-reportes-anual');
+    const boxMeses = document.getElementById('lista-reportes-meses');
+    
+    if (!datosDelAnio) {
+        boxAnual.innerHTML = "<p>No hay datos para este año.</p>";
+        boxMeses.innerHTML = "";
+        return;
+    }
+
+    let mejorMes = { nombre: '', neto: -999999 };
+    
+    // Armar Resumen Anual
+    boxMeses.innerHTML = '';
+    // Iterar del mes 11 al 0 (Diciembre a Enero)
+    for (let i = 11; i >= 0; i--) {
+        if (datosDelAnio.meses[i]) {
+            let datosMes = datosDelAnio.meses[i];
+            let netoMes = datosMes.ingresos - datosMes.gastos;
+            
+            if (netoMes > mejorMes.neto) {
+                mejorMes = { nombre: mesesNombres[i], neto: netoMes };
+            }
+
+            // Ordenar mayores gastos del mes
+            datosMes.mayoresGastos.sort((a, b) => b.monto - a.monto);
+            let topGasto = datosMes.mayoresGastos.length > 0 ? `${datosMes.mayoresGastos[0].desc} (S/ ${datosMes.mayoresGastos[0].monto.toFixed(2)})` : 'Ninguno fuerte';
+
+            // Armar texto de ingresos
+            let ingresosTexto = '';
+            for (const [fuente, total] of Object.entries(datosMes.desgloseIngresos)) {
+                if(!fuente.includes('(Auto)')) ingresosTexto += `<span style="display:inline-block; margin-right: 10px; color:#aaa;">${fuente}: S/ ${total.toFixed(2)}</span>`;
+            }
+
+            let colorNeto = netoMes > 0 ? '#29c87c' : '#ff3b4a';
+
+            boxMeses.innerHTML += `
+                <div style="background: #111; padding: 15px; border-radius: 8px; border: 1px solid #222;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="color: #fff; margin:0;">${mesesNombres[i]} ${anioElegido}</h4>
+                        <strong style="color: ${colorNeto}; font-size: 1.1rem;">Neto: S/ ${netoMes.toFixed(2)}</strong>
+                    </div>
+                    <div style="font-size: 0.8rem; margin-bottom: 8px;">
+                        <span style="color: #10B981;">Ingresos Totales: S/ ${datosMes.ingresos.toFixed(2)}</span> | 
+                        <span style="color: #EF4444;">Gastos Totales: S/ ${datosMes.gastos.toFixed(2)}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; border-top: 1px solid #333; padding-top: 8px; margin-top: 8px;">
+                        <strong>Ingresos detallados:</strong><br>${ingresosTexto || 'Sin detalle'}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #ffb800; margin-top: 5px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Gasto más fuerte: ${topGasto}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    let netoAnual = datosDelAnio.totalIngresos - datosDelAnio.totalGastos;
+    let colorNetoAnual = netoAnual > 0 ? '#29c87c' : '#ff3b4a';
+
+    boxAnual.innerHTML = `
+        <h3 style="color: #fff; margin-bottom: 15px;">Balance General ${anioElegido}</h3>
+        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px;">
+            <span style="color: #aaa;">Total Generado:</span> <strong style="color: #10B981;">S/ ${datosDelAnio.totalIngresos.toFixed(2)}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px;">
+            <span style="color: #aaa;">Total Gastado:</span> <strong style="color: #EF4444;">S/ ${datosDelAnio.totalGastos.toFixed(2)}</strong>
+        </div>
+        <hr style="border-top: 1px dashed #444; margin: 10px 0;">
+        <div style="display: flex; justify-content: space-between; font-size: 1rem;">
+            <span style="color: #fff;">Ganancia Neta del Año:</span> <strong style="color: ${colorNetoAnual};">S/ ${netoAnual.toFixed(2)}</strong>
+        </div>
+        <div style="margin-top: 15px; font-size: 0.85rem; background: rgba(255,184,0,0.1); padding: 8px; border-radius: 5px; color: #ffb800; text-align: center;">
+            <i class="fa-solid fa-star"></i> Tu mejor mes fue <strong>${mejorMes.nombre}</strong> (S/ ${mejorMes.neto.toFixed(2)})
+        </div>
+    `;
+}
 
 // 1. ESCUCHAR CATEGORÍAS DE CLIENTES
 const qCategorias = query(collection(db, "categorias_ingreso"), orderBy("nombre", "asc"));
@@ -66,7 +198,7 @@ document.getElementById('form-categoria').addEventListener('submit', async (e) =
     } catch (error) { console.error(error); }
 });
 
-// 2. ESCUCHAR GASTOS FIJOS (BOTÓN PAGADO, FECHAS EXACTAS Y BARRA)
+// 2. ESCUCHAR GASTOS FIJOS 
 const qFijos = query(collection(db, "gastos_fijos"));
 onSnapshot(qFijos, (querySnapshot) => {
     let sumaFijos = 0;
@@ -78,7 +210,6 @@ onSnapshot(qFijos, (querySnapshot) => {
     hoyMediodia.setHours(12, 0, 0, 0);
     const hoyIdentificador = hoyMediodia.getMonth() + '-' + hoyMediodia.getFullYear();
     
-    // Obtenemos los datos y los ordenamos por fecha manualmente
     let fijosArray = [];
     listaFijosGlobal = {};
     
@@ -86,7 +217,6 @@ onSnapshot(qFijos, (querySnapshot) => {
         const data = documento.data();
         let fechaProximo;
         
-        // Soporte para datos nuevos vs datos antiguos
         if (data.fechaProximo) {
             fechaProximo = data.fechaProximo.toDate();
         } else if (data.dia) {
@@ -106,7 +236,6 @@ onSnapshot(qFijos, (querySnapshot) => {
         listaFijosGlobal[documento.id] = { ...data, id: documento.id, fechaProximoCalc: fechaProximo };
     });
     
-    // Ordenar de pago más cercano a más lejano
     fijosArray.sort((a, b) => a.fechaProximo - b.fechaProximo);
     
     const listaFijos = document.getElementById('lista-fijos');
@@ -193,11 +322,9 @@ onSnapshot(qFijos, (querySnapshot) => {
     actualizarPanelPrincipal();
 });
 
-// Selector Local Time por Defecto
 const campoFechaFijo = document.getElementById('fecha-fijo');
 if(campoFechaFijo) campoFechaFijo.value = getLocalISOString();
 
-// Guardar Nuevo Gasto Fijo
 document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('nombre-fijo').value;
@@ -217,7 +344,6 @@ document.getElementById('form-gasto-fijo').addEventListener('submit', async (e) 
     } catch (error) { console.error(error); }
 });
 
-// ---- LÓGICA DE EDICIÓN DE GASTOS FIJOS ----
 window.abrirModalEditar = function(id) {
     const data = listaFijosGlobal[id];
     if(data) {
@@ -226,7 +352,6 @@ window.abrirModalEditar = function(id) {
         document.getElementById('edit-monto-fijo').value = data.monto;
         document.getElementById('edit-frecuencia-fijo').value = data.frecuencia || 'mensual';
         
-        // Recuperar la fecha y extraer su texto para el input type="date"
         const tzoffset = data.fechaProximoCalc.getTimezoneOffset() * 60000;
         const localISOTime = new Date(data.fechaProximoCalc.getTime() - tzoffset).toISOString().split('T')[0];
         document.getElementById('edit-fecha-fijo').value = localISOTime;
@@ -261,7 +386,6 @@ document.getElementById('form-editar-fijo').addEventListener('submit', async (e)
     } catch (error) { console.error("Error actualizando: ", error); }
 });
 
-// Avanzar de Ciclo de Pago (✅)
 window.marcarPagado = async function(id) {
     const data = listaFijosGlobal[id];
     if(!data) return;
@@ -282,7 +406,6 @@ window.marcarPagado = async function(id) {
     });
 };
 
-// Retroceder en caso de equivocación
 window.deshacerPago = async function(id) {
     const data = listaFijosGlobal[id];
     if(!data || !data.ultimaFechaCobro) return;
@@ -301,6 +424,7 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     let gastosMes = 0;
     let saldoTotal = 0;
     desgloseIngresosGlobal = {}; 
+    historialMovimientosParaReporte = []; // Llenado para Reportes
     
     const listaHistorial = document.getElementById('lista-historial');
     if(listaHistorial) listaHistorial.innerHTML = '';
@@ -309,6 +433,8 @@ onSnapshot(qMovimientos, (querySnapshot) => {
 
     querySnapshot.forEach((documento) => {
         const data = documento.data();
+        historialMovimientosParaReporte.push(data); // Guardar para reportes
+        
         const fechaDoc = data.fecha.toDate();
         const mesDoc = fechaDoc.getMonth();
         const anioDoc = fechaDoc.getFullYear();
@@ -352,6 +478,11 @@ onSnapshot(qMovimientos, (querySnapshot) => {
     ingresosMesGlobal = ingresosMes;
     gastosMesGlobal = gastosMes;
     actualizarPanelPrincipal();
+    
+    // Si el modal está abierto, actualiza en vivo
+    if (document.getElementById('modal-reportes').style.display === 'flex') {
+        procesarReportes();
+    }
 });
 
 document.getElementById('tipo-movimiento').addEventListener('change', (e) => {
@@ -382,7 +513,6 @@ document.getElementById('form-movimiento').addEventListener('submit', async (e) 
     const descripcion = tipo === 'ingreso' ? document.getElementById('categoria-ingreso').value : document.getElementById('descripcion-gasto').value; 
     const fechaElegida = document.getElementById('fecha-movimiento').value;
     
-    // Extracción limpia para Evitar Bugs de Zona Horaria
     const [year, month, day] = fechaElegida.split('-');
     const fechaGuardar = new Date(year, month - 1, day, 12, 0, 0);
 
@@ -411,7 +541,6 @@ function actualizarPanelPrincipal() {
         elementoLibre.style.color = "#ff3b4a"; 
     }
     
-    // DINÁMICA DE LA BARRA VERDE/ROJA
     const barraRoja = document.getElementById('barra-roja-fijos');
     if (barraRoja) {
         let porcentajeRojo = 0;
