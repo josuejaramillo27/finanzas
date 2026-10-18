@@ -27,7 +27,7 @@
                     <p style="font-size: 0.85rem; color: #29c87c; margin-bottom: 5px;"><i class="fa-solid fa-unlock-keyhole"></i> Libre para Gastar Hoy</p>
                     <h3 id="dinero-libre" style="font-size: 1.8rem; color: #29c87c;">S/ 0.00</h3>
                     
-                    <!-- NUEVA BARRA: VERDE (100%) CON ROJO SUPERPUESTO (Fijos pendientes) -->
+                    <!-- BARRA: VERDE (100%) CON ROJO SUPERPUESTO -->
                     <div style="width: 100%; height: 12px; background-color: #10B981; border-radius: 6px; margin-top: 10px; position: relative; overflow: hidden;">
                         <div id="barra-roja-fijos" style="height: 100%; background-color: #EF4444; width: 0%; position: absolute; left: 0; top: 0; transition: width 0.5s;"></div>
                     </div>
@@ -49,8 +49,10 @@
             <p style="font-size: 0.75rem; margin-top: 8px; color: #aaa;">Si hay diferencia, la app registrará el gasto/ingreso invisible con sus fechas.</p>
         </section>
 
-        <!-- RESUMEN DEL MES ACTUAL -->
-        <section class="card mac-glass full-width" style="border-top: 4px solid #0088ff;">
+        <!-- RESUMEN DEL MES ACTUAL Y BOTÓN DE REPORTES -->
+        <section class="card mac-glass full-width" style="border-top: 4px solid #0088ff; position: relative;">
+            <button onclick="abrirModalReportes()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: #0088ff; font-size: 1.5rem; cursor: pointer;" title="Ver Resúmenes Mensuales y Anuales"><i class="fa-solid fa-chart-pie"></i></button>
+            
             <h2 class="color-teal" style="justify-content: center;"><i class="fa-solid fa-calendar-day"></i> Resumen de <span id="mes-actual-nombre" style="margin-left: 5px;">Mes</span></h2>
             
             <div class="resumen-grid">
@@ -150,6 +152,29 @@
                 </select>
                 <button type="submit" class="btn-pildora btn-amarillo" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
             </form>
+        </div>
+    </div>
+
+    <!-- NUEVA VENTANA MODAL PARA REPORTES MENSULAES Y ANUALES -->
+    <div id="modal-reportes" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 0;">
+        <div class="card mac-glass" style="width: 95%; max-width: 800px; margin: 0; position: relative;">
+            <button onclick="cerrarModalReportes()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <h2 style="color: #0088ff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;"><i class="fa-solid fa-chart-pie"></i> Mis Reportes</h2>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <select id="selector-anio-reporte" style="margin-bottom: 0;">
+                    <!-- Se llenará con JS -->
+                </select>
+            </div>
+
+            <div id="contenido-reportes-anual" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 20px;">
+                <!-- Aquí va el resumen del año seleccionado -->
+            </div>
+
+            <h3 style="color: #aaa; font-size: 1rem; margin-bottom: 15px;">Desglose Mes a Mes</h3>
+            <div id="lista-reportes-meses" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Aquí irán los resúmenes mes a mes -->
+            </div>
         </div>
     </div>
 
